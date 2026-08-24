@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-crtitical: var(--critical);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+}
+
+:root {
+  --primary: #ececec;
+  --secondary: #272727;
+  --text-primary: #171717;
+  --text-secondary: #cfcfcf;
+  --critical: #ff2056;
+  --warning: #ffbb19;
+  --success: #009966;
+}
