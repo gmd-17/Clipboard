@@ -1,21 +1,73 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: var(--primary);
-  --color-secondary: var(--secondary);
-  --color-text-primary: var(--text-primary);
-  --color-text-secondary: var(--text-secondary);
-  --color-crtitical: var(--critical);
-  --color-warning: var(--warning);
-  --color-success: var(--success);
+  /* --- Light Mode Base --- */
+  --color-primary: #f8fafc; /* color: #f8fafc */
+  --color-secondary: #ffffff; /* color: #ffffff */
+  --color-surface: #f1f5f9; /* color: #f1f5f9 */
+  --color-surface-hover: #e2e8f0;
+
+  /* Borders */
+  --color-border-subtle: #e2e8f0; /* color: #e2e8f0 */
+  --color-border-focus: #3b82f6; /* color: #3b82f6 */
+
+  /* Interactive Accents */
+  --color-accent: #0f172a; /* color: #0f172a */
+  --color-accent-foreground: #ffffff; /* color: #ffffff */
+  --color-link: #2563eb; /* color: #2563eb */
+
+  /* Text */
+  --color-text-primary: #0f172a; /* color: #0f172a */
+  --color-text-secondary: #334155; /* color: #334155 */
+  --color-text-muted: #64748b; /* color: #64748b */
+
+  /* Alerts */
+  --color-critical: #ef4444; /* color: #ef4444 */
+  --color-warning: #f59e0b; /* color: #f59e0b */
+  --color-success: #10b981; /* color: #10b981 */
 }
 
-:root {
-  --primary: #ececec;
-  --secondary: #272727;
-  --text-primary: #171717;
-  --text-secondary: #cfcfcf;
-  --critical: #ff2056;
-  --warning: #ffbb19;
-  --success: #009966;
+/* --- Dark Mode Overrides --- */
+.dark {
+  --color-primary: #0f172a;
+  --color-secondary: #1e293b;
+  --color-surface: #1e293b;
+  --color-surface-hover: #334155;
+
+  --color-border-subtle: #334155;
+  --color-border-focus: #60a5fa;
+
+  --color-accent: #f8fafc;
+  --color-accent-foreground: #0f172a;
+  --color-link: #3b82f6;
+
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #e2e8f0;
+  --color-text-muted: #94a3b8;
+}
+
+.test {
+  --color-primary: #f8fafc; /* color: #f8fafc */
+  --color-secondary: #ffffff; /* color: #ffffff */
+  --color-surface: #f1f5f9; /* color: #f1f5f9 */
+  --color-surface-hover: #e2e8f0;
+
+  /* Borders */
+  --color-border-subtle: #e2e8f0; /* color: #e2e8f0 */
+  --color-border-focus: #3b82f6; /* color: #3b82f6 */
+
+  /* Interactive Accents */
+  --color-accent: #0f172a; /* color: #0f172a */
+  --color-accent-foreground: #ffffff; /* color: #ffffff */
+  --color-link: #2563eb; /* color: #2563eb */
+
+  /* Text */
+  --color-text-primary: #0f172a; /* color: #0f172a */
+  --color-text-secondary: #334155; /* color: #334155 */
+  --color-text-muted: #64748b; /* color: #64748b */
+
+  /* Alerts */
+  --color-critical: #ef4444; /* color: #ef4444 */
+  --color-warning: #f59e0b; /* color: #f59e0b */
+  --color-success: #10b981; /* color: #10b981 */
 }
