@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import "./App.css";
 import { useAuth } from "./context/AuthContext";
 import HeaderNav from "./components/HeaderNav";
+import BoardsTab from "./components/BoardsTab/BoardsTab";
 
 function App() {
   const { user, signOut } = useAuth();
@@ -11,6 +12,7 @@ function App() {
   return (
     <>
       <HeaderNav />
+      <BoardsTab />
       <div>app</div>
       <button className="p2 m-1 rounded border p-2" onClick={signOut}>
         SignOut

@@ -1,5 +1,3 @@
-// src/types/supabase.ts
-
 export type Json =
   | string
   | number
@@ -12,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17";
+    PostgrestVersion: "14.15";
   };
   graphql_public: {
     Tables: {
@@ -112,43 +110,77 @@ export type Database = {
         };
         Relationships: [];
       };
-      card_groups: {
+      clip_items: {
         Row: {
           board_id: string;
-          color: string | null;
-          created_at: string;
+          clip_id: string;
+          content: string | null;
+          created_at: string | null;
+          file_name: string | null;
+          file_path: string | null;
+          file_size: number | null;
           id: string;
-          name: string;
-          position: number;
-          updated_at: string;
-          user_id: string;
+          mime_type: string | null;
+          ocr_text: string | null;
+          og_description: string | null;
+          og_favicon: string | null;
+          og_image: string | null;
+          og_site_name: string | null;
+          og_title: string | null;
+          position: number | null;
+          type: string;
         };
         Insert: {
           board_id: string;
-          color?: string | null;
-          created_at?: string;
+          clip_id: string;
+          content?: string | null;
+          created_at?: string | null;
+          file_name?: string | null;
+          file_path?: string | null;
+          file_size?: number | null;
           id?: string;
-          name: string;
-          position?: number;
-          updated_at?: string;
-          user_id: string;
+          mime_type?: string | null;
+          ocr_text?: string | null;
+          og_description?: string | null;
+          og_favicon?: string | null;
+          og_image?: string | null;
+          og_site_name?: string | null;
+          og_title?: string | null;
+          position?: number | null;
+          type: string;
         };
         Update: {
           board_id?: string;
-          color?: string | null;
-          created_at?: string;
+          clip_id?: string;
+          content?: string | null;
+          created_at?: string | null;
+          file_name?: string | null;
+          file_path?: string | null;
+          file_size?: number | null;
           id?: string;
-          name?: string;
-          position?: number;
-          updated_at?: string;
-          user_id?: string;
+          mime_type?: string | null;
+          ocr_text?: string | null;
+          og_description?: string | null;
+          og_favicon?: string | null;
+          og_image?: string | null;
+          og_site_name?: string | null;
+          og_title?: string | null;
+          position?: number | null;
+          type?: string;
         };
         Relationships: [
           {
-            foreignKeyName: "card_groups_board_id_fkey";
+            foreignKeyName: "clip_items_board_id_fkey";
             columns: ["board_id"];
             isOneToOne: false;
             referencedRelation: "boards";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "clip_items_clip_id_fkey";
+            columns: ["clip_id"];
+            isOneToOne: false;
+            referencedRelation: "clips";
             referencedColumns: ["id"];
           },
         ];
@@ -156,76 +188,34 @@ export type Database = {
       clips: {
         Row: {
           board_id: string;
-          content: string | null;
           created_at: string | null;
           expires_at: string | null;
-          file_name: string | null;
-          file_path: string | null;
-          file_size: number | null;
-          group_id: string | null;
           id: string;
-          mime_type: string | null;
           note: string | null;
-          ocr_text: string | null;
-          og_description: string | null;
-          og_favicon: string | null;
-          og_image: string | null;
-          og_site_name: string | null;
-          og_title: string | null;
           pinned: boolean | null;
-          position: number;
           tag: string | null;
-          type: string;
           updated_at: string;
           user_id: string;
         };
         Insert: {
           board_id: string;
-          content?: string | null;
           created_at?: string | null;
           expires_at?: string | null;
-          file_name?: string | null;
-          file_path?: string | null;
-          file_size?: number | null;
-          group_id?: string | null;
           id?: string;
-          mime_type?: string | null;
           note?: string | null;
-          ocr_text?: string | null;
-          og_description?: string | null;
-          og_favicon?: string | null;
-          og_image?: string | null;
-          og_site_name?: string | null;
-          og_title?: string | null;
           pinned?: boolean | null;
-          position?: number;
           tag?: string | null;
-          type: string;
           updated_at?: string;
           user_id: string;
         };
         Update: {
           board_id?: string;
-          content?: string | null;
           created_at?: string | null;
           expires_at?: string | null;
-          file_name?: string | null;
-          file_path?: string | null;
-          file_size?: number | null;
-          group_id?: string | null;
           id?: string;
-          mime_type?: string | null;
           note?: string | null;
-          ocr_text?: string | null;
-          og_description?: string | null;
-          og_favicon?: string | null;
-          og_image?: string | null;
-          og_site_name?: string | null;
-          og_title?: string | null;
           pinned?: boolean | null;
-          position?: number;
           tag?: string | null;
-          type?: string;
           updated_at?: string;
           user_id?: string;
         };
@@ -237,13 +227,6 @@ export type Database = {
             referencedRelation: "boards";
             referencedColumns: ["id"];
           },
-          {
-            foreignKeyName: "clips_group_id_fkey";
-            columns: ["group_id"];
-            isOneToOne: false;
-            referencedRelation: "card_groups";
-            referencedColumns: ["id"];
-          },
         ];
       };
     };
@@ -251,30 +234,35 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      get_shared_board_cards: {
+      get_shared_board_clip_items: {
         Args: { p_token: string };
         Returns: {
+          clip_id: string;
           content: string;
           created_at: string;
           file_name: string;
           file_path: string;
           file_size: number;
-          group_color: string;
-          group_id: string;
-          group_name: string;
-          id: string;
+          item_id: string;
           mime_type: string;
-          note: string;
           ocr_text: string;
           og_description: string;
           og_favicon: string;
           og_image: string;
           og_site_name: string;
           og_title: string;
-          pinned: boolean;
           position: number;
-          tag: string;
           type: string;
+        }[];
+      };
+      get_shared_board_clips: {
+        Args: { p_token: string };
+        Returns: {
+          clip_id: string;
+          created_at: string;
+          note: string;
+          pinned: boolean;
+          tag: string;
         }[];
       };
     };

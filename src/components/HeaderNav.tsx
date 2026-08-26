@@ -79,7 +79,7 @@ const HeaderNav = () => {
           <button
             disabled={loading}
             className="bg-surface hover:bg-surface-hover flex cursor-pointer gap-1 rounded-xl p-2 disabled:cursor-not-allowed disabled:opacity-60"
-            onClick={() => console.log("button clicked")}
+            onClick={() => alert("Implement this")}
           >
             <span>
               {/* Show spinner when loading, otherwise show user icon */}
