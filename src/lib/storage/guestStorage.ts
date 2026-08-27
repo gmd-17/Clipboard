@@ -143,3 +143,29 @@ export async function clearGuestData(): Promise<void> {
 
   await tx.done;
 }
+
+export async function putBoard(board: Board): Promise<void> {
+  const db = await getDB();
+  await db.put("boards", board);
+}
+
+export async function deleteBoardCascade(boardId: string): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction(["boards", "groups", "cards"], "readwrite");
+
+  await tx.objectStore("boards").delete(boardId);
+
+  const groupKeys = await tx
+    .objectStore("groups")
+    .index("by-board")
+    .getAllKeys(boardId);
+  for (const id of groupKeys) await tx.objectStore("groups").delete(id);
+
+  const cardKeys = await tx
+    .objectStore("cards")
+    .index("by-board")
+    .getAllKeys(boardId);
+  for (const id of cardKeys) await tx.objectStore("cards").delete(id);
+
+  await tx.done;
+}

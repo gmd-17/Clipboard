@@ -6,8 +6,7 @@ import { createBrowserRouter, RouterProvider } from "react-router";
 import AuthForm from "./components/AuthForm.tsx";
 import { AuthProvider } from "./context/AuthContext.tsx";
 import { ThemeProvider } from "./context/ThemeContext.tsx";
-// import SignIn from "./components/AuthLayout/SignIn.tsx";
-// import SignUp from "./components/AuthLayout/SignUp.tsx";
+import { DataProvider } from "./context/DataContext.tsx";
 
 const router = createBrowserRouter([
   {
@@ -31,9 +30,11 @@ const router = createBrowserRouter([
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AuthProvider>
-      <ThemeProvider>
-        <RouterProvider router={router} />
-      </ThemeProvider>
+      <DataProvider>
+        <ThemeProvider>
+          <RouterProvider router={router} />
+        </ThemeProvider>
+      </DataProvider>
     </AuthProvider>
   </StrictMode>,
 );

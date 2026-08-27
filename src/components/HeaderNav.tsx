@@ -1,5 +1,4 @@
 import { LoaderCircleIcon } from "lucide-react"; // Or your icon package
-import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import {
   MoonIcon,
@@ -13,21 +12,8 @@ import { useTheme } from "../context/ThemeContext";
 import { NavLink } from "react-router";
 
 const HeaderNav = () => {
-  const { user: authUser, loading: authLoading } = useAuth();
-
-  // const [user, setUser] = useState<User | null>(authUser ?? null);
+  const { user, loading } = useAuth();
   const { isDark, toggleTheme } = useTheme();
-  const [user, setUser] = useState(authUser);
-  const [loading, setLoading] = useState(authLoading);
-
-  // useEffect(() => {}, []);
-
-  useEffect(() => {
-    setUser(authUser);
-    setLoading(authLoading);
-    console.log("IsDark", isDark);
-    console.log("authLoading", authLoading);
-  }, [authUser, authLoading]);
 
   return (
     <>

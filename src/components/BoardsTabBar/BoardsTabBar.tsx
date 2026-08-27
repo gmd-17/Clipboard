@@ -2,9 +2,11 @@ import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import BoardsFolderButton from "./BoardsFolderButton";
 import BoardTab from "./BoardTab";
+import { useData } from "../../context/DataContext";
 
 const BoardsTabBar = () => {
-  const [boards, setBoards] = useState<string[]>([]);
+  const { boards } = useData();
+
   const [isFolderMenuOpen, setIsFolderMenuOpen] = useState(false);
 
   const toggleFolderMenu = () => {
@@ -13,7 +15,6 @@ const BoardsTabBar = () => {
 
   const addNewBoard = () => {
     alert("implement this");
-    setBoards([...boards, "push"]);
   };
 
   return (
@@ -38,8 +39,8 @@ const BoardsTabBar = () => {
 
       <div data-board-tabs className="flex gap-1 overflow-x-auto py-1">
         {/* Boards tabs */}
-        {boards.map(() => {
-          return <BoardTab />;
+        {boards.map((board) => {
+          return <BoardTab key={board.id} boardId={board.id} />;
         })}
       </div>
     </div>

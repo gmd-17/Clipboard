@@ -1,9 +1,16 @@
 import { useState } from "react";
 import { NavLink } from "react-router";
 import RoundCount from "./RoundCount";
+import { useData } from "../../context/DataContext";
 
-const BoardTab = () => {
+interface BoardTabProps {
+  boardId: string;
+}
+
+const BoardTab = ({ boardId }: BoardTabProps) => {
+  const { cards } = useData();
   const [isActive, setIsActive] = useState(false);
+  const cardsCount = cards.filter((card) => card.board_id === boardId).length;
 
   const toggleIsActive = () => {
     setIsActive((prev) => !prev);
@@ -20,7 +27,7 @@ const BoardTab = () => {
       }`}
     >
       Board
-      <RoundCount classToggle={isActive} number={0} />
+      <RoundCount classToggle={isActive} number={cardsCount} />
     </NavLink>
   );
 };
