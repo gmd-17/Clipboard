@@ -141,7 +141,7 @@ export const SEED_CARDS: ClipCard[] = [
     og_favicon: null,
 
     position: 1,
-    expires_at: hoursFromNow(24),
+    expires_at: hoursFromNow(24 * 7),
     created_at: now(),
     updated_at: now(),
   },
@@ -178,7 +178,7 @@ export const SEED_CARDS: ClipCard[] = [
     og_favicon: "https://supabase.com/favicon/favicon.ico",
 
     position: 2,
-    expires_at: hoursFromNow(48),
+    expires_at: hoursFromNow(48 * 7),
     created_at: now(),
     updated_at: now(),
   },
@@ -222,7 +222,7 @@ export const SEED_CARDS: ClipCard[] = [
     og_favicon: null,
 
     position: 0,
-    expires_at: hoursFromNow(24),
+    expires_at: hoursFromNow(24 * 7),
     created_at: now(),
     updated_at: now(),
   },
@@ -260,7 +260,7 @@ export const SEED_CARDS: ClipCard[] = [
     og_favicon: null,
 
     position: 1,
-    expires_at: hoursFromNow(24),
+    expires_at: hoursFromNow(24 * 7),
     created_at: now(),
     updated_at: now(),
   },

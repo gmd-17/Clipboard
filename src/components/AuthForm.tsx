@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router";
 import { useAuth } from "../context/AuthContext";
-import { CheckIcon, TriangleAlertIcon } from "lucide-react";
+import { CheckIcon, LockIcon, MailIcon, TriangleAlertIcon } from "lucide-react";
 import InputBox from "../common/InputBox";
 import Label from "../common/Label";
 
@@ -85,6 +85,7 @@ export default function AuthForm() {
               onChange={setEmail}
               placeholder={"name@company.com"}
               disabled={submitting}
+              icon={<MailIcon />}
             />
           </div>
 
@@ -110,6 +111,7 @@ export default function AuthForm() {
               onChange={setPassword}
               placeholder={"••••••••••••"}
               disabled={submitting}
+              icon={<LockIcon />}
             />
           </div>
 

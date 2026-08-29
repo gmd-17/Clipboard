@@ -40,7 +40,13 @@ const BoardsTabBar = () => {
       <div data-board-tabs className="flex gap-1 overflow-x-auto py-1">
         {/* Boards tabs */}
         {boards.map((board) => {
-          return <BoardTab key={board.id} boardId={board.id} />;
+          return (
+            <BoardTab
+              key={board.id}
+              boardId={board.id}
+              boardName={board.name}
+            />
+          );
         })}
       </div>
     </div>

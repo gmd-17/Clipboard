@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 @theme {
+  --breakpoint-xs: 400px;
+
   /* --- Light Mode Base --- */
   --color-primary: #f8fafc; /* color: #f8fafc */
   --color-secondary: #ffffff; /* color: #ffffff */
@@ -95,4 +97,13 @@
 * {
   scrollbar-width: thin !important;
   scrollbar-color: var(--color-border-subtle) transparent !important;
+}
+
+/* Hide the native clear button in Chrome, Safari, and Edge */
+input[type="search"]::-webkit-search-decoration,
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-results-button,
+input[type="search"]::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
 }
