@@ -18,7 +18,9 @@ function App() {
   useEffect(() => {
     if (!boardId && boards.length > 0 && !hasRedirected.current) {
       hasRedirected.current = true;
-      navigate(`/${boards[0].id}`, { replace: true });
+      const defaultBoard =
+        boards.find((board) => board.is_default === true) || boards[0];
+      navigate(`/${defaultBoard.id}`, { replace: true });
     }
   }, [boardId, boards, navigate]);
 

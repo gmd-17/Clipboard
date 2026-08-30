@@ -29,16 +29,23 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const [cards, setCards] = useState<ClipCard[]>([]);
   const [loading, setLoading] = useState(true);
 
-  async function loadCloudData() {
-    const [boardsRes, groupsRes, cardsRes] = await Promise.all([
-      supabase.from("boards").select("*").order("position"),
-      supabase.from("card_groups").select("*").order("position"),
-      supabase.from("clips").select("*").order("position"),
-    ]);
+  // Per project notes, clips should be Realtime-subscribed filtered by board_id;
+  //  I don't see any supabase.channel(...) subscription yet in DataContext.
+  //  Flagging since it's called out explicitly in your spec — probably just not built yet.
 
-    setBoards(boardsRes.data ?? []);
-    setGroups((groupsRes.data ?? []) as CardGroup[]);
-    setCards((cardsRes.data ?? []) as ClipCard[]);
+  async function loadCloudData() {
+    try {
+      const [boardsRes, groupsRes, cardsRes] = await Promise.all([
+        supabase.from("boards").select("*").order("position"),
+        supabase.from("card_groups").select("*").order("position"),
+        supabase.from("clips").select("*").order("position"),
+      ]);
+      setBoards(boardsRes.data ?? []);
+      setGroups((groupsRes.data ?? []) as CardGroup[]);
+      setCards((cardsRes.data ?? []) as ClipCard[]);
+    } catch (error) {
+      console.error("Failed to load cloud data ", error);
+    }
   }
 
   const loadData = useCallback(async () => {

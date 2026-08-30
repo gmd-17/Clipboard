@@ -10,13 +10,14 @@ import {
 import type { ClipCard } from "../../types";
 import { useEffect, useState } from "react";
 import { formatExpiry, tagColorMap } from "../../utils/boardCardUtils";
+import CardContent from "./CardContent";
 
 interface CardProp {
   card: ClipCard;
 }
 
 const Card = ({ card }: CardProp) => {
-  const [timeLeft, setTimeLeft] = useState("");
+  const [timeLeft, setTimeLeft] = useState(() => formatExpiry(card));
   const [showExpiryMenu, setShowExpiryMenu] = useState(false);
 
   useEffect(() => {
@@ -26,13 +27,13 @@ const Card = ({ card }: CardProp) => {
     }, 60000);
 
     return () => clearInterval(timer);
-  }, [card.expires_at]);
+  }, [card.expires_at, card.pinned]);
 
   const tagColor = tagColorMap[card.tag];
   return (
     <div
       data-card
-      className="border-border-subtle bg-surface text-text-primary mb-2 rounded-xl border p-4 transition-all"
+      className="group border-border-subtle bg-secondary text-text-primary mb-2 break-inside-avoid-column rounded-xl border p-4 transition-all"
     >
       <div
         data-card-header
@@ -40,7 +41,7 @@ const Card = ({ card }: CardProp) => {
       >
         {card.tag !== "none" && (
           <span
-            className={`${tagColor} inline-block h-3 w-3 rounded-full`}
+            className={`${tagColor} inline-block h-3 w-3 shrink-0 rounded-full`}
           ></span>
         )}
         <button
@@ -54,7 +55,7 @@ const Card = ({ card }: CardProp) => {
         <div className="relative">
           <button
             onClick={() => setShowExpiryMenu(!showExpiryMenu)}
-            className={`flex cursor-pointer items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] transition-all ${
+            className={`flex cursor-pointer items-center gap-1 truncate rounded-full border px-2 py-0.5 font-mono text-[10px] transition-all ${
               card.pinned
                 ? "border-blue-200/60 bg-blue-50 text-blue-700 dark:border-blue-800/40 dark:bg-blue-950/40 dark:text-blue-300"
                 : "border-amber-200/60 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-800/50 dark:bg-amber-950/50 dark:text-amber-300 dark:hover:bg-amber-900/60"
@@ -76,7 +77,7 @@ const Card = ({ card }: CardProp) => {
           </span>
         )}
 
-        <div className="ml-auto flex items-center gap-2 opacity-80 transition-opacity group-hover:opacity-100">
+        <div className="ml-auto flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
           <button
             onClick={() => console.log()}
             className="text-text-muted hover:bg-surface-hover hover:text-text-primary cursor-pointer rounded-lg p-1.5 transition-colors"
@@ -87,14 +88,14 @@ const Card = ({ card }: CardProp) => {
           <button
             onClick={() => console.log()}
             className="text-text-muted hover:bg-surface-hover hover:text-text-primary cursor-pointer rounded-lg p-1.5 transition-colors"
-            title="Set card color tag"
+            title="Copy card content"
           >
             <CopyIcon className="h-3.5 w-3.5" />
           </button>
           <button
             onClick={() => console.log()}
-            className="text-text-muted hover:bg-surface-hover hover:text-text-primary cursor-pointer rounded-lg p-1.5 transition-colors"
-            title="Set card color tag"
+            className="text-text-muted hover:bg-critical/20 hover:text-critical cursor-pointer rounded-lg p-1.5 transition-colors"
+            title="Delete card"
           >
             <Trash2Icon className="h-3.5 w-3.5" />
           </button>
@@ -102,16 +103,22 @@ const Card = ({ card }: CardProp) => {
       </div>
 
       {card.note ? (
-        <div className="text-text-secondary text-xs font-bold">{card.note}</div>
+        <button
+          onClick={() => alert("pending")}
+          className="text-text-secondary cursor-pointer text-xs font-bold"
+        >
+          {card.note}
+        </button>
       ) : (
-        <span className="text-text-muted flex items-center gap-1 text-[11px] opacity-0 transition-opacity hover:opacity-100">
+        <button
+          onClick={() => alert("pending")}
+          className="text-text-muted flex cursor-pointer items-center gap-1 text-[11px] italic opacity-0 transition-opacity group-hover:opacity-80 hover:opacity-100"
+        >
           <PenLineIcon className="h-3 w-3" /> + Add note
-        </span>
+        </button>
       )}
 
-      <p className="bg-secondary mt-2 rounded-lg p-2 font-mono text-[16px]">
-        {card.content}
-      </p>
+      <CardContent card={card} />
     </div>
   );
 };

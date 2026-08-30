@@ -6,7 +6,7 @@ const BoardToolBar = () => {
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   return (
-    <div data-board-tool-bar className="flex px-4 py-2">
+    <div data-board-tool-bar className="flex px-4 py-2 sm:px-8">
       <div className="min-w-65 shrink-0">
         <InputBox
           id={"board-tool-bar-search"}
