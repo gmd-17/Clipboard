@@ -2,10 +2,17 @@ import { useParams } from "react-router";
 import { useData } from "../../context/DataContext";
 import BoardToolBar from "./BoardToolBar";
 import Card from "./Card";
+import { useEffect } from "react";
 
 const Board = () => {
   const { boardId } = useParams<{ boardId: string }>();
-  const { boards, cards, groups, loading } = useData();
+  const { boards, cards, groups, loading, setActiveBoardId } = useData();
+
+  useEffect(() => {
+    setActiveBoardId(boardId ?? null);
+
+    return () => setActiveBoardId(null);
+  }, [boardId, setActiveBoardId]);
 
   const board = boards.find((board) => board.id === boardId);
   const boardCards = cards.filter((card) => card.board_id === boardId);

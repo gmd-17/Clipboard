@@ -151,6 +151,7 @@ export async function putBoard(board: Board): Promise<void> {
 
 export async function deleteBoardCascade(boardId: string): Promise<void> {
   const db = await getDB();
+
   const tx = db.transaction(["boards", "groups", "cards"], "readwrite");
 
   await tx.objectStore("boards").delete(boardId);
@@ -159,13 +160,86 @@ export async function deleteBoardCascade(boardId: string): Promise<void> {
     .objectStore("groups")
     .index("by-board")
     .getAllKeys(boardId);
-  for (const id of groupKeys) await tx.objectStore("groups").delete(id);
+
+  for (const id of groupKeys) {
+    await tx.objectStore("groups").delete(id);
+  }
 
   const cardKeys = await tx
     .objectStore("cards")
     .index("by-board")
     .getAllKeys(boardId);
-  for (const id of cardKeys) await tx.objectStore("cards").delete(id);
+
+  for (const id of cardKeys) {
+    await tx.objectStore("cards").delete(id);
+  }
+
+  await tx.done;
+}
+
+export async function putGroup(group: CardGroup): Promise<void> {
+  const db = await getDB();
+  await db.put("groups", group);
+}
+
+export async function deleteGroup(groupId: string): Promise<void> {
+  const db = await getDB();
+
+  const tx = db.transaction(["groups", "cards"], "readwrite");
+
+  await tx.objectStore("groups").delete(groupId);
+
+  // A group is only organizational metadata. Deleting it must therefore
+  // leave its cards alive and move them back to the ungrouped section.
+  const cards = await tx.objectStore("cards").index("by-group").getAll(groupId);
+
+  for (const card of cards) {
+    await tx.objectStore("cards").put({
+      ...card,
+      group_id: null,
+      updated_at: new Date().toISOString(),
+    });
+  }
+
+  await tx.done;
+}
+
+export async function putCard(card: ClipCard): Promise<void> {
+  const db = await getDB();
+  await db.put("cards", card);
+}
+
+export async function deleteCard(cardId: string): Promise<void> {
+  const db = await getDB();
+  await db.delete("cards", cardId);
+}
+
+/**
+ * Guest mode has no server-side cleanup job, so expired cards need a small
+ * local equivalent. This only removes unpinned cards whose explicit
+ * expires_at has passed. Pinned cards normally have expires_at = null.
+ */
+export async function deleteExpiredGuestCards(): Promise<void> {
+  const db = await getDB();
+  const cards = await db.getAll("cards");
+  const now = Date.now();
+
+  const expiredIds = cards
+    .filter(
+      (card) =>
+        !card.pinned &&
+        card.expires_at !== null &&
+        new Date(card.expires_at).getTime() <= now,
+    )
+    .map((card) => card.id);
+
+  if (expiredIds.length === 0) return;
+
+  const tx = db.transaction("cards", "readwrite");
+
+  for (const id of expiredIds) {
+    await tx.store.delete(id);
+  }
 
   await tx.done;
 }
