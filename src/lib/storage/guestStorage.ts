@@ -1,9 +1,10 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
+
 import type { Board, CardGroup, ClipCard } from "../../types";
 import {
-  SEED_BOARDS,
-  SEED_GROUPS,
-  SEED_CARDS,
+  createSeedBoards,
+  createSeedGroups,
+  createSeedCards,
   createSeedFiles,
 } from "../seedData";
 
@@ -102,8 +103,26 @@ export async function loadGuestData(): Promise<{
 }> {
   const db = await getDB();
 
-  // Do not await anything non-IDB (fetch, setTimeout, etc.) inside this transaction —
-  //  idb auto-commits on the next microtask if the event loop isn't kept busy with more IDB calls.
+  /*
+   * Generate all seed data from one base time.
+   *
+   * This keeps board, group, and card timestamps consistent with one another
+   * and makes expiry fixtures relative to the moment the guest database is
+   * initialized instead of a hard-coded date.
+   */
+  const now = Date.now();
+  const seedBoards = createSeedBoards(now);
+  const seedGroups = createSeedGroups(now);
+  const seedCards = createSeedCards(now);
+
+  /*
+   * Fetch the static files before opening the IndexedDB transaction.
+   *
+   * We don't want an IndexedDB transaction sitting open while waiting for
+   * fetch(). Once the files have been fetched, the transaction below only
+   * performs IndexedDB operations.
+   */
+  const seedFiles = await createSeedFiles();
 
   const tx = db.transaction(
     ["_meta", "boards", "groups", "cards", "files"],
@@ -113,37 +132,51 @@ export async function loadGuestData(): Promise<{
   const initialized = await tx.objectStore("_meta").get("initialized");
 
   if (!initialized) {
-    // Keep the initialization check and all seed writes in the same
-    // transaction. This matters because loadGuestData() can be called
-    // concurrently during React startup (especially in StrictMode).
-    //
-    // If two callers arrive here at the same time, IndexedDB serializes
-    // these read/write transactions. The second transaction sees the
-    // initialized marker written by the first instead of seeding again.
-    for (const board of SEED_BOARDS) {
+    /*
+     * Keep the initialization check and all seed writes in the same
+     * transaction. This protects against two startup calls trying to seed
+     * the guest database at the same time.
+     */
+    for (const board of seedBoards) {
       await tx.objectStore("boards").put(board);
     }
 
-    for (const group of SEED_GROUPS) {
+    for (const group of seedGroups) {
       await tx.objectStore("groups").put(group);
     }
 
-    for (const card of SEED_CARDS) {
-      await tx.objectStore("cards").put(card);
-    }
+    const seedFileByCardId = new Map(
+      seedFiles.map(({ cardId, blob }) => [cardId, blob]),
+    );
 
-    // Files are deliberately stored separately from the card metadata.
-    // IndexedDB can persist the Blob directly; we don't convert it to base64.
-    for (const { cardId, blob } of createSeedFiles()) {
-      await tx.objectStore("files").put(blob, cardId);
+    for (const card of seedCards) {
+      const seedFile = seedFileByCardId.get(card.id);
+
+      if (seedFile) {
+        /*
+         * The actual Blob is the source of truth for file metadata.
+         * This avoids hard-coding a file size in seedData.ts and means the
+         * UI always sees the real size of the fixture sitting in IndexedDB.
+         */
+        await tx.objectStore("cards").put({
+          ...card,
+          file_size: seedFile.size,
+          mime_type: seedFile.type || card.mime_type,
+        });
+
+        /*
+         * Cloud file data lives in Supabase Storage; guest file data lives
+         * in IndexedDB's files store. Neither should ever hold base64.
+         */
+        await tx.objectStore("files").put(seedFile, card.id);
+      } else {
+        await tx.objectStore("cards").put(card);
+      }
     }
 
     await tx.objectStore("_meta").put(true, "initialized");
   }
 
-  // Reading the stores through this same transaction means callers get a
-  // consistent snapshot of the guest data that this initialization step
-  // just established.
   const [boards, groups, cards] = await Promise.all([
     tx.objectStore("boards").getAll(),
     tx.objectStore("groups").getAll(),
@@ -180,6 +213,7 @@ export async function clearGuestData(): Promise<void> {
 
 export async function putBoard(board: Board): Promise<void> {
   const db = await getDB();
+
   await db.put("boards", board);
 }
 
@@ -217,6 +251,7 @@ export async function deleteBoardCascade(boardId: string): Promise<void> {
 
 export async function putGroup(group: CardGroup): Promise<void> {
   const db = await getDB();
+
   await db.put("groups", group);
 }
 
@@ -244,16 +279,19 @@ export async function deleteGroup(groupId: string): Promise<void> {
 
 export async function putCard(card: ClipCard): Promise<void> {
   const db = await getDB();
+
   await db.put("cards", card);
 }
 
 export async function putFile(cardId: string, blob: Blob): Promise<void> {
   const db = await getDB();
+
   await db.put("files", blob, cardId);
 }
 
 export async function getFile(cardId: string): Promise<Blob | undefined> {
   const db = await getDB();
+
   return db.get("files", cardId);
 }
 
@@ -277,7 +315,9 @@ export async function deleteCard(cardId: string): Promise<void> {
  */
 export async function deleteExpiredGuestCards(): Promise<void> {
   const db = await getDB();
+
   const cards = await db.getAll("cards");
+
   const now = Date.now();
 
   const expiredIds = cards
