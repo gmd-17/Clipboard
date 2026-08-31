@@ -47,7 +47,7 @@ export function createSeedBoards(now = Date.now()): Board[] {
       icon: "💼",
       position: 0,
       ttl_hours: 48,
-      is_default: true,
+      is_default: false,
       created_at: boardCreatedAt,
       updated_at: boardCreatedAt,
     },
@@ -59,7 +59,7 @@ export function createSeedBoards(now = Date.now()): Board[] {
       icon: "🏠",
       position: 1,
       ttl_hours: 168,
-      is_default: false,
+      is_default: true,
       created_at: boardCreatedAt,
       updated_at: boardCreatedAt,
     },
@@ -360,6 +360,42 @@ export function createSeedCards(now = Date.now()): ClipCard[] {
     // -----------------------------------------------------------------------
     // Personal board
     // -----------------------------------------------------------------------
+
+    {
+      id: "seed-card-personal-welcome",
+      board_id: "seed-board-personal",
+      user_id: "guest-local",
+      group_id: null,
+      note: "A quick introduction to Clipboard",
+      pinned: true,
+      tag: "blue",
+      type: "text",
+      content: `Welcome to Clipboard!
+
+This is your Personal board — a simple place to keep temporary snippets, links, notes, images, and files.
+
+Boards let you keep different kinds of clipboard content separate.
+
+Use the Boards tab at the top to switch between boards.
+
+Want to see Clipboard's demo content? Open the Work board from the Boards tab. It contains examples of text, links, images, PDFs, DOCX files, and other file-backed cards.
+
+Tip: The Personal board is intentionally kept simple so you can start using Clipboard without being overwhelmed by the demo content.`,
+      file_path: null,
+      file_name: null,
+      file_size: null,
+      mime_type: null,
+      ocr_text: null,
+      og_title: null,
+      og_description: null,
+      og_image: null,
+      og_site_name: null,
+      og_favicon: null,
+      position: 0,
+      expires_at: null,
+      created_at: getSeedTimestamp(now, -5),
+      updated_at: getSeedTimestamp(now, -5),
+    },
 
     {
       id: "seed-card-personal",

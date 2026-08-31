@@ -9,22 +9,52 @@ import {
 import { useEffect, useState } from "react";
 
 import type { ClipCard } from "../../types";
-import { getFile } from "../../lib/storage/guestStorage";
+import { getCardFile } from "../../lib/api/cards";
+import { useData } from "../../context/DataContext";
 
 interface CardContentProp {
   card: ClipCard;
 }
 
+/*
+ * These are the card types whose actual data lives in a file Blob.
+ *
+ * `text` is deliberately not included because a normal text card stores
+ * its content directly in the clips row.
+ */
 const FILE_TYPES = new Set(["image", "pdf", "docx", "file"]);
 
 /**
- * Format bytes for humans instead of displaying a raw number such as
- * "18473 bytes". The card metadata stores bytes because that's the useful
- * machine-readable value; formatting belongs in the UI.
+ * A `file` card can represent many file formats. For plain text files,
+ * we can read the Blob directly with blob.text() and render the result
+ * inside <pre>.
+ *
+ * MIME type is preferred, but the filename extension is a useful fallback
+ * for older/imported cards that may not have mime_type populated.
+ */
+const isTextFile = (card: ClipCard): boolean => {
+  if (card.type !== "file") {
+    return false;
+  }
+
+  if (card.mime_type?.startsWith("text/")) {
+    return true;
+  }
+
+  return card.file_name?.toLowerCase().endsWith(".txt") ?? false;
+};
+
+/**
+ * Format bytes for humans instead of displaying a raw number.
  */
 function formatFileSize(bytes: number | null): string {
-  if (bytes === null || bytes < 0) return "Unknown size";
-  if (bytes < 1024) return `${bytes} B`;
+  if (bytes === null || bytes < 0) {
+    return "Unknown size";
+  }
+
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
 
   const units = ["KB", "MB", "GB"];
   let size = bytes / 1024;
@@ -41,49 +71,104 @@ function formatFileSize(bytes: number | null): string {
 }
 
 const CardContent = ({ card }: CardContentProp) => {
+  const { isGuest } = useData();
+
   const [fileSrc, setFileSrc] = useState<string | null>(
     FILE_TYPES.has(card.type) ? card.content : null,
   );
 
+  const [fileText, setFileText] = useState<string | null>(null);
+  const [fileLoading, setFileLoading] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
+
+  const textFile = isTextFile(card);
+
   useEffect(() => {
     /*
-     * Cloud file data lives in Supabase Storage and its signed URL is stored
-     * in `content`. Guest file data lives in IndexedDB's `files` store.
-     * Neither backend should ever put the actual file into `content` as base64.
+     * Normal text/URL cards don't have a file Blob to load.
      */
     if (!FILE_TYPES.has(card.type)) {
       setFileSrc(null);
+      setFileText(null);
+      setFileError(null);
+      setFileLoading(false);
       return;
     }
 
-    // Cloud cards already have a usable signed URL.
-    if (card.content) {
-      setFileSrc(card.content);
-      return;
-    }
-
-    // Guest cards have no URL in `content`, so retrieve their Blob locally.
     let cancelled = false;
+
+    /*
+     * This variable is deliberately local to this effect.
+     *
+     * When we create an object URL for a Blob, the cleanup function below
+     * must revoke that exact URL when this card leaves the screen or the
+     * underlying file changes.
+     */
     let objectUrl: string | null = null;
 
-    const loadGuestFile = async () => {
-      try {
-        setFileSrc(null);
+    const loadFile = async () => {
+      setFileLoading(true);
+      setFileError(null);
 
-        const blob = await getFile(card.id);
+      /*
+       * Clear previous content while the new file is loading.
+       * This prevents an old card/file preview from briefly appearing
+       * while React is switching to another card.
+       */
+      setFileSrc(null);
+      setFileText(null);
+
+      try {
+        const blob = await getCardFile(isGuest, card);
 
         if (!blob) {
-          console.warn(`No guest file found for card ${card.id}`);
+          throw new Error(`No file found for card ${card.id}.`);
+        }
+
+        /*
+         * Plain text is special:
+         *
+         * We don't need URL.createObjectURL() here. Blob.text() gives us
+         * the actual text directly, which can then be rendered in <pre>.
+         *
+         * This is also why there is no URL.revokeObjectURL() needed for
+         * .txt files.
+         */
+        if (textFile) {
+          const text = await blob.text();
+
+          /*
+           * The inline preview uses the text directly, but we also create an
+           * object URL because FileInfo needs a URL for its Open and Download
+           * actions.
+           */
+          objectUrl = URL.createObjectURL(blob);
+
+          if (cancelled) {
+            URL.revokeObjectURL(objectUrl);
+            objectUrl = null;
+            return;
+          }
+
+          setFileText(text);
+          setFileSrc(objectUrl);
+
           return;
         }
 
+        /*
+         * Images, PDFs, DOCX files, and other binary files need a URL
+         * that browser elements/links can consume.
+         *
+         * This creates a temporary browser URL pointing at the Blob.
+         */
         objectUrl = URL.createObjectURL(blob);
 
         if (cancelled) {
           /*
-           * The component may have unmounted while IndexedDB was loading.
-           * Cleanup may already have run before this URL existed, so revoke
-           * it immediately instead of leaking the object URL.
+           * IndexedDB may finish loading after the component has already
+           * unmounted. In that case the normal cleanup ran before this
+           * object URL existed, so revoke it immediately.
            */
           URL.revokeObjectURL(objectUrl);
           objectUrl = null;
@@ -92,20 +177,43 @@ const CardContent = ({ card }: CardContentProp) => {
 
         setFileSrc(objectUrl);
       } catch (error) {
-        console.error(`Failed to load guest file for card ${card.id}`, error);
+        if (!cancelled) {
+          console.error(`Failed to load file for card ${card.id}:`, error);
+
+          setFileSrc(null);
+          setFileText(null);
+          setFileError("Unable to preview this file.");
+        }
+      } finally {
+        if (!cancelled) {
+          setFileLoading(false);
+        }
       }
     };
 
-    void loadGuestFile();
+    void loadFile();
 
     return () => {
       cancelled = true;
 
+      /*
+       * Object URLs are browser-managed references to Blob data.
+       * They are not automatically revoked just because React stops
+       * rendering the <img>/<iframe>, so we explicitly release them.
+       */
       if (objectUrl) {
         URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [card.id, card.type, card.content]);
+  }, [
+    card.id,
+    card.type,
+    card.file_name,
+    card.mime_type,
+    card.file_path,
+    isGuest,
+    textFile,
+  ]);
 
   return (
     <div
@@ -189,21 +297,28 @@ const CardContent = ({ card }: CardContentProp) => {
           onClick={() => alert(card)}
           className="relative aspect-4/3 cursor-pointer overflow-hidden bg-neutral-900"
         >
-          {fileSrc ? (
-            <img
-              src={fileSrc}
-              alt={card.file_name || "Pasted image"}
-              className="h-full w-full object-cover transition-transform group-hover/item:scale-105"
-              loading="lazy"
-            />
-          ) : (
+          {fileLoading && !fileSrc && (
             <div className="flex h-full items-center justify-center text-xs text-neutral-500">
               <LoaderCircleIcon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
               Loading image...
             </div>
           )}
 
-          {/* OCR indicator */}
+          {fileError && (
+            <div className="flex h-full items-center justify-center px-3 text-center text-xs text-red-400">
+              {fileError}
+            </div>
+          )}
+
+          {fileSrc && (
+            <img
+              src={fileSrc}
+              alt={card.file_name || "Pasted image"}
+              className="h-full w-full object-cover transition-transform group-hover/item:scale-105"
+              loading="lazy"
+            />
+          )}
+
           {card.ocr_text && (
             <div
               className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded bg-neutral-900/80 px-1.5 py-0.5 font-mono text-[10px] text-amber-300 backdrop-blur-xs"
@@ -222,22 +337,32 @@ const CardContent = ({ card }: CardContentProp) => {
 
       {card.type === "pdf" && (
         <div className="overflow-hidden rounded-md">
-          {fileSrc ? (
+          {fileLoading && !fileSrc && (
+            <div className="flex h-64 items-center justify-center bg-neutral-900 text-xs text-neutral-500">
+              <LoaderCircleIcon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              Loading PDF...
+            </div>
+          )}
+
+          {fileError && (
+            <div className="flex h-64 items-center justify-center bg-neutral-900 px-3 text-center text-xs text-red-400">
+              {fileError}
+            </div>
+          )}
+
+          {fileSrc && (
             /*
              * Modern browsers have a built-in PDF viewer, so we can preview
-             * a PDF without adding another React dependency. The same `src`
-             * works for both a Supabase signed URL and a guest Blob URL.
+             * the PDF without adding another React dependency.
+             *
+             * fileSrc is a temporary Blob URL in guest mode and is produced
+             * from the cloud file by getCardFile() in cloud mode.
              */
             <iframe
               src={fileSrc}
               title={card.file_name || "PDF preview"}
               className="h-64 w-full border-0 bg-neutral-900"
             />
-          ) : (
-            <div className="flex h-64 items-center justify-center bg-neutral-900 text-xs text-neutral-500">
-              <LoaderCircleIcon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-              Loading PDF...
-            </div>
           )}
 
           <FileInfo
@@ -262,10 +387,49 @@ const CardContent = ({ card }: CardContentProp) => {
       )}
 
       {/* ------------------------------------------------------------------ */}
+      {/* PLAIN TEXT FILE                                                    */}
+      {/* ------------------------------------------------------------------ */}
+
+      {/* Plain text file (.txt and other text/* files) */}
+      {textFile && (
+        <div className="overflow-hidden rounded-md">
+          {/* The actual text preview stays inline so users can read the file
+        without leaving the board. */}
+          {fileLoading && (
+            <div className="text-text-muted flex items-center gap-2 px-2.5 py-3 text-[11px]">
+              <LoaderCircleIcon className="h-3.5 w-3.5 animate-spin" />
+              Loading file...
+            </div>
+          )}
+
+          {fileError && (
+            <div className="text-critical px-2.5 py-3 text-[11px]">
+              {fileError}
+            </div>
+          )}
+
+          {!fileLoading && !fileError && fileText !== null && (
+            <pre className="text-text-primary max-h-56 overflow-auto px-2.5 py-2.5 font-mono text-[11px] leading-relaxed wrap-break-word whitespace-pre-wrap">
+              {fileText}
+            </pre>
+          )}
+
+          {/* Keep the same file metadata/actions used by other file cards.
+        fileSrc is the temporary Blob URL created by the effect above. */}
+          <FileInfo
+            card={card}
+            fileSrc={fileSrc}
+            icon={<FileTextIcon className="h-5 w-5 text-blue-400" />}
+            description={card.mime_type || "Plain text file"}
+          />
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
       {/* GENERIC FILE                                                       */}
       {/* ------------------------------------------------------------------ */}
 
-      {card.type === "file" && (
+      {card.type === "file" && !textFile && (
         <FileInfo
           card={card}
           fileSrc={fileSrc}
@@ -286,8 +450,10 @@ interface FileInfoProps {
 
 /**
  * Shared UI for downloadable files and formats that don't have a reliable
- * native browser preview (such as DOCX). Keeping this separate prevents the
- * individual card.type branches from becoming nearly identical copies.
+ * native browser preview, such as DOCX.
+ *
+ * Keeping this separate prevents the individual card.type branches from
+ * becoming nearly identical copies.
  */
 const FileInfo = ({ card, fileSrc, icon, description }: FileInfoProps) => {
   return (

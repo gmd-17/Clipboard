@@ -177,6 +177,44 @@ export async function createCard(
   return created;
 }
 
+export async function getCardFile(
+  isGuest: boolean,
+  card: ClipCard,
+): Promise<Blob | undefined> {
+  if (!isFileCard(card.type)) {
+    return undefined;
+  }
+
+  if (isGuest) {
+    /*
+     * Guest files are stored directly as Blobs in IndexedDB.
+     * We read the Blob rather than converting it to base64, because the
+     * whole point of the guest files store is to keep large binary data
+     * out of localStorage and out of the card's text content.
+     */
+    return guestDb.getFile(card.id);
+  }
+
+  if (!card.file_path) {
+    return undefined;
+  }
+
+  /*
+   * Cloud files live in the private Supabase Storage bucket. The API layer
+   * already knows the storage path, so the Card component doesn't need to
+   * know anything about Supabase Storage or signed URLs.
+   */
+  const { data, error } = await supabase.storage
+    .from("clip-files")
+    .download(card.file_path);
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
 export async function updateCard(
   isGuest: boolean,
   id: string,
