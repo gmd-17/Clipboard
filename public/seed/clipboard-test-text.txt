@@ -1,0 +1,8 @@
+Clipboard guest-mode file test
+
+This is a real Blob stored in IndexedDB.
+
+Card: seed-card-file
+Purpose: verify that binary/file data survives persistence.
+
+No base64 is involved.

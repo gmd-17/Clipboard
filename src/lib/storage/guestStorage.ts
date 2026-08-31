@@ -1,6 +1,11 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type { Board, CardGroup, ClipCard } from "../../types";
-import { SEED_BOARDS, SEED_GROUPS, SEED_CARDS } from "../seedData";
+import {
+  SEED_BOARDS,
+  SEED_GROUPS,
+  SEED_CARDS,
+  createSeedFiles,
+} from "../seedData";
 
 interface ClipboardDB extends DBSchema {
   _meta: {
@@ -97,8 +102,11 @@ export async function loadGuestData(): Promise<{
 }> {
   const db = await getDB();
 
+  // Do not await anything non-IDB (fetch, setTimeout, etc.) inside this transaction —
+  //  idb auto-commits on the next microtask if the event loop isn't kept busy with more IDB calls.
+
   const tx = db.transaction(
-    ["_meta", "boards", "groups", "cards"],
+    ["_meta", "boards", "groups", "cards", "files"],
     "readwrite",
   );
 
@@ -122,6 +130,12 @@ export async function loadGuestData(): Promise<{
 
     for (const card of SEED_CARDS) {
       await tx.objectStore("cards").put(card);
+    }
+
+    // Files are deliberately stored separately from the card metadata.
+    // IndexedDB can persist the Blob directly; we don't convert it to base64.
+    for (const { cardId, blob } of createSeedFiles()) {
+      await tx.objectStore("files").put(blob, cardId);
     }
 
     await tx.objectStore("_meta").put(true, "initialized");
