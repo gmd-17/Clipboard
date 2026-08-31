@@ -398,6 +398,53 @@ Tip: The Personal board is intentionally kept simple so you can start using Clip
     },
 
     {
+      id: "seed-card-markdown-code",
+      board_id: "seed-board-work",
+      user_id: "guest-local",
+      group_id: "seed-group-code",
+      note: "Markdown + Python syntax highlighting demo",
+      pinned: false,
+      tag: "blue",
+      type: "text",
+      content: `# Python example
+
+A normal paragraph can contain **bold text** and \`inline code\`.
+
+\`\`\`python
+def greet(name):
+    message = f"Hello, {name}!"
+    print(message)
+
+greet("Clipboard")
+\`\`\`
+
+And here's some JavaScript:
+
+\`\`\`javascript
+const cards = ["text", "image", "pdf"];
+
+cards.forEach((card) => {
+  console.log(card);
+});
+\`\`\`
+`,
+      file_path: null,
+      file_name: null,
+      file_size: null,
+      mime_type: null,
+      ocr_text: null,
+      og_title: null,
+      og_description: null,
+      og_image: null,
+      og_site_name: null,
+      og_favicon: null,
+      position: 0,
+      expires_at: null,
+      created_at: getSeedTimestamp(now, -5),
+      updated_at: getSeedTimestamp(now, -5),
+    },
+
+    {
       id: "seed-card-personal",
       board_id: "seed-board-personal",
       user_id: GUEST_USER_ID,

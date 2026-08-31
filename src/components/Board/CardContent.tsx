@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import type { ClipCard } from "../../types";
 import { getCardFile } from "../../lib/api/cards";
 import { useData } from "../../context/DataContext";
+import MarkdownContent from "./MarkdownContent";
 
 interface CardContentProp {
   card: ClipCard;
@@ -227,9 +228,9 @@ const CardContent = ({ card }: CardContentProp) => {
       {card.type === "text" && (
         <div
           onClick={() => alert(card)}
-          className="text-text-primary line-clamp-6 font-mono text-xs leading-relaxed whitespace-pre-wrap"
+          className="text-text-primary line-clamp-6 text-xs leading-relaxed"
         >
-          {card.content}
+          <MarkdownContent content={card.content ?? ""} />
         </div>
       )}
 
