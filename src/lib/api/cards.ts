@@ -12,7 +12,7 @@ export type CreateCardInput = Omit<
    * text/URL cards.
    *
    * Cloud mode uploads this Blob to Supabase Storage.
-   * Guest mode keeps the existing card representation in IndexedDB.
+   * Guest mode stores this Blob in IndexedDB.
    */
   file?: Blob;
 };
@@ -79,10 +79,7 @@ export async function createCard(
   if (isGuest) {
     const now = new Date().toISOString();
 
-    // IndexedDB can hold substantially more data than localStorage. We don't
-    // put files in localStorage, and this API deliberately leaves the actual
-    // file representation to the future guest file-storage implementation.
-    const { file: _file, ...cardData } = card;
+    const { file, ...cardData } = card;
 
     const created: ClipCard = {
       ...cardData,
@@ -93,7 +90,19 @@ export async function createCard(
       updated_at: now,
     };
 
+    /*
+     * Cloud file data lives in Supabase Storage; guest file data lives in
+     * IndexedDB's files store. Neither should ever hold base64.
+     *
+     * IndexedDB can store the original Blob directly, so guest mode does not
+     * need to convert large files into strings just to persist them.
+     */
     await guestDb.putCard(created);
+
+    if (file) {
+      await guestDb.putFile(created.id, file);
+    }
+
     return created;
   }
 

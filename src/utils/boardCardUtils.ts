@@ -21,11 +21,14 @@ export const EXPIRY_OPTIONS = [
   { label: "30 Days", hours: 720 },
   { label: "Never (Pin Card)", hours: 0 },
 ];
+
 export const formatExpiry = (card: ClipCard) => {
   if (card.pinned || !card.expires_at) return "Pinned";
 
   const diffMs = new Date(card.expires_at).getTime() - Date.now();
+
   if (diffMs <= 0) return "Expired";
+
   const hours = Math.floor(diffMs / (1000 * 60 * 60));
   const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
 
@@ -35,8 +38,24 @@ export const formatExpiry = (card: ClipCard) => {
   }
 
   if (hours > 0) return `${hours}h ${mins}m left`;
+
   return `${mins}m left`;
 };
+
+/**
+ * Determines whether a card should currently appear in the UI.
+ *
+ * This is deliberately only a display-level check. Cloud cleanup is handled
+ * by the cleanup-expired Edge Function, so the client must never delete an
+ * expired cloud card just because this function returns false.
+ */
+export function isCardVisible(card: ClipCard): boolean {
+  if (card.pinned || card.expires_at === null) {
+    return true;
+  }
+
+  return new Date(card.expires_at).getTime() > Date.now();
+}
 
 // Match the closest standard option for checkmark display
 export const getMatchedExpiryHours = (card: ClipCard): number => {
@@ -44,21 +63,26 @@ export const getMatchedExpiryHours = (card: ClipCard): number => {
   // console.log(card.expires_at);
 
   if (card.pinned || !card.expires_at) return 0;
+
   const createdAtMs = new Date(card.created_at || Date.now()).getTime();
   const expiresAtMs = new Date(card.expires_at).getTime();
   const totalHours = Math.round((expiresAtMs - createdAtMs) / (1000 * 60 * 60));
 
   // Find closest match among standard options
   const standardOptions = [1, 6, 12, 24, 48, 168, 720];
+
   let closest = 48;
   let minDiff = Infinity;
+
   for (const opt of standardOptions) {
     const diff = Math.abs(opt - totalHours);
+
     if (diff < minDiff) {
       minDiff = diff;
       closest = opt;
     }
   }
+
   return closest;
 };
 

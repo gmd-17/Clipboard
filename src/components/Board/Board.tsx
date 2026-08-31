@@ -3,6 +3,7 @@ import { useData } from "../../context/DataContext";
 import BoardToolBar from "./BoardToolBar";
 import Card from "./Card";
 import { useEffect } from "react";
+import { isCardVisible } from "../../utils/boardCardUtils";
 
 const Board = () => {
   const { boardId } = useParams<{ boardId: string }>();
@@ -15,7 +16,13 @@ const Board = () => {
   }, [boardId, setActiveBoardId]);
 
   const board = boards.find((board) => board.id === boardId);
-  const boardCards = cards.filter((card) => card.board_id === boardId);
+
+  // Expiry is a display concern here. In cloud mode, expired cards remain
+  // in Supabase until the hourly cleanup job removes them.
+  const boardCards = cards.filter(
+    (card) => card.board_id === boardId && isCardVisible(card),
+  );
+
   const boardGroups = groups.filter((group) => group.board_id === boardId);
 
   console.log(board);
@@ -23,19 +30,6 @@ const Board = () => {
   console.log(boardGroups);
 
   return (
-    // <div data-board className="bg-primary flex flex-1 flex-col">
-    //   <BoardToolBar />
-
-    //   <div
-    //     data-cards-container
-    //     className="min-h-0 flex-1 columns-1 gap-4 overflow-y-auto px-4 [column-fill:balance] sm:columns-2 sm:px-8 lg:columns-3 xl:columns-4 2xl:columns-5"
-    //   >
-    //     {boardCards.map((card) => (
-    //       <Card key={card.id} card={card} />
-    //     ))}
-    //   </div>
-    // </div>
-
     <>
       <div
         data-board
@@ -59,15 +53,17 @@ const Board = () => {
                 <div className="bg-surface mb-2 h-50 w-full animate-pulse break-inside-avoid-column rounded-2xl border">
                   1
                 </div>
+
                 <div className="bg-surface mb-2 h-50 w-full animate-pulse break-inside-avoid-column rounded-2xl border">
                   2
                 </div>
+
                 <div className="bg-surface mb-2 h-50 w-full animate-pulse break-inside-avoid-column rounded-2xl border">
                   3
                 </div>
               </>
             ) : (
-              // {/* 3. Added break-inside-avoid to prevent cards from splitting across columns */}
+              // Expired cloud cards are hidden here but are not deleted.
               boardCards.map((card) => <Card key={card.id} card={card} />)
             )}
           </div>

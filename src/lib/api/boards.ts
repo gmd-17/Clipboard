@@ -82,6 +82,10 @@ export async function deleteBoard(isGuest: boolean, id: string): Promise<void> {
     return;
   }
 
+  // Cloud deletion relies on the database FK cascade from boards to its
+  // related card_groups/clips. Do not duplicate that cascade in the client.
+  // If that FK is not configured with ON DELETE CASCADE, this operation will
+  // fail with an FK violation; that assumption needs to be verified separately.
   const { error } = await supabase.from("boards").delete().eq("id", id);
 
   if (error) throw error;

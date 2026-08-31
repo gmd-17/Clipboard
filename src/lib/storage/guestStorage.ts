@@ -34,39 +34,55 @@ interface ClipboardDB extends DBSchema {
       "by-user": string;
     };
   };
+
+  files: {
+    // The card ID is the key so the file always has a direct relationship
+    // with the card that owns it.
+    key: string;
+    value: Blob;
+  };
 }
 
 const DB_NAME = "clipboard-guest";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase<ClipboardDB>> | null = null;
 
 function getDB() {
   if (!dbPromise) {
     dbPromise = openDB<ClipboardDB>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        db.createObjectStore("_meta");
+      upgrade(db, oldVersion) {
+        // These stores already exist for users upgrading from DB version 1.
+        // Only create them during the initial database setup. Without these
+        // checks, upgrading v1 -> v2 would try to create existing stores again.
+        if (oldVersion < 1) {
+          db.createObjectStore("_meta");
 
-        const boards = db.createObjectStore("boards", {
-          keyPath: "id",
-        });
+          const boards = db.createObjectStore("boards", {
+            keyPath: "id",
+          });
 
-        boards.createIndex("by-user", "user_id");
+          boards.createIndex("by-user", "user_id");
 
-        const groups = db.createObjectStore("groups", {
-          keyPath: "id",
-        });
+          const groups = db.createObjectStore("groups", {
+            keyPath: "id",
+          });
 
-        groups.createIndex("by-board", "board_id");
-        groups.createIndex("by-user", "user_id");
+          groups.createIndex("by-board", "board_id");
+          groups.createIndex("by-user", "user_id");
 
-        const cards = db.createObjectStore("cards", {
-          keyPath: "id",
-        });
+          const cards = db.createObjectStore("cards", {
+            keyPath: "id",
+          });
 
-        cards.createIndex("by-board", "board_id");
-        cards.createIndex("by-group", "group_id");
-        cards.createIndex("by-user", "user_id");
+          cards.createIndex("by-board", "board_id");
+          cards.createIndex("by-group", "group_id");
+          cards.createIndex("by-user", "user_id");
+        }
+
+        if (!db.objectStoreNames.contains("files")) {
+          db.createObjectStore("files");
+        }
       },
     });
   }
@@ -81,56 +97,59 @@ export async function loadGuestData(): Promise<{
 }> {
   const db = await getDB();
 
-  const initialized = await db.get("_meta", "initialized");
-
-  if (!initialized) {
-    await seedGuestData();
-
-    return {
-      boards: SEED_BOARDS,
-      groups: SEED_GROUPS,
-      cards: SEED_CARDS,
-    };
-  }
-
-  return {
-    boards: await db.getAll("boards"),
-    groups: await db.getAll("groups"),
-    cards: await db.getAll("cards"),
-  };
-}
-
-export async function seedGuestData(): Promise<void> {
-  const db = await getDB();
-
   const tx = db.transaction(
     ["_meta", "boards", "groups", "cards"],
     "readwrite",
   );
 
-  for (const board of SEED_BOARDS) {
-    await tx.objectStore("boards").put(board);
+  const initialized = await tx.objectStore("_meta").get("initialized");
+
+  if (!initialized) {
+    // Keep the initialization check and all seed writes in the same
+    // transaction. This matters because loadGuestData() can be called
+    // concurrently during React startup (especially in StrictMode).
+    //
+    // If two callers arrive here at the same time, IndexedDB serializes
+    // these read/write transactions. The second transaction sees the
+    // initialized marker written by the first instead of seeding again.
+    for (const board of SEED_BOARDS) {
+      await tx.objectStore("boards").put(board);
+    }
+
+    for (const group of SEED_GROUPS) {
+      await tx.objectStore("groups").put(group);
+    }
+
+    for (const card of SEED_CARDS) {
+      await tx.objectStore("cards").put(card);
+    }
+
+    await tx.objectStore("_meta").put(true, "initialized");
   }
 
-  for (const group of SEED_GROUPS) {
-    await tx.objectStore("groups").put(group);
-  }
-
-  for (const card of SEED_CARDS) {
-    await tx.objectStore("cards").put(card);
-  }
-
-  // Mark as initialized only after all seed data has been written.
-  await tx.objectStore("_meta").put(true, "initialized");
+  // Reading the stores through this same transaction means callers get a
+  // consistent snapshot of the guest data that this initialization step
+  // just established.
+  const [boards, groups, cards] = await Promise.all([
+    tx.objectStore("boards").getAll(),
+    tx.objectStore("groups").getAll(),
+    tx.objectStore("cards").getAll(),
+  ]);
 
   await tx.done;
+
+  return {
+    boards,
+    groups,
+    cards,
+  };
 }
 
 export async function clearGuestData(): Promise<void> {
   const db = await getDB();
 
   const tx = db.transaction(
-    ["_meta", "boards", "groups", "cards"],
+    ["_meta", "boards", "groups", "cards", "files"],
     "readwrite",
   );
 
@@ -139,6 +158,7 @@ export async function clearGuestData(): Promise<void> {
     tx.objectStore("boards").clear(),
     tx.objectStore("groups").clear(),
     tx.objectStore("cards").clear(),
+    tx.objectStore("files").clear(),
   ]);
 
   await tx.done;
@@ -152,7 +172,10 @@ export async function putBoard(board: Board): Promise<void> {
 export async function deleteBoardCascade(boardId: string): Promise<void> {
   const db = await getDB();
 
-  const tx = db.transaction(["boards", "groups", "cards"], "readwrite");
+  const tx = db.transaction(
+    ["boards", "groups", "cards", "files"],
+    "readwrite",
+  );
 
   await tx.objectStore("boards").delete(boardId);
 
@@ -172,6 +195,7 @@ export async function deleteBoardCascade(boardId: string): Promise<void> {
 
   for (const id of cardKeys) {
     await tx.objectStore("cards").delete(id);
+    await tx.objectStore("files").delete(id);
   }
 
   await tx.done;
@@ -209,9 +233,27 @@ export async function putCard(card: ClipCard): Promise<void> {
   await db.put("cards", card);
 }
 
+export async function putFile(cardId: string, blob: Blob): Promise<void> {
+  const db = await getDB();
+  await db.put("files", blob, cardId);
+}
+
+export async function getFile(cardId: string): Promise<Blob | undefined> {
+  const db = await getDB();
+  return db.get("files", cardId);
+}
+
 export async function deleteCard(cardId: string): Promise<void> {
   const db = await getDB();
-  await db.delete("cards", cardId);
+
+  // The card and its Blob are separate IndexedDB records, so delete both
+  // together. This prevents a deleted card from leaving its file behind.
+  const tx = db.transaction(["cards", "files"], "readwrite");
+
+  await tx.objectStore("cards").delete(cardId);
+  await tx.objectStore("files").delete(cardId);
+
+  await tx.done;
 }
 
 /**
@@ -235,10 +277,11 @@ export async function deleteExpiredGuestCards(): Promise<void> {
 
   if (expiredIds.length === 0) return;
 
-  const tx = db.transaction("cards", "readwrite");
+  const tx = db.transaction(["cards", "files"], "readwrite");
 
   for (const id of expiredIds) {
-    await tx.store.delete(id);
+    await tx.objectStore("cards").delete(id);
+    await tx.objectStore("files").delete(id);
   }
 
   await tx.done;

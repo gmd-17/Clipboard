@@ -119,9 +119,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!isGuest) return;
 
-    const cleanup = () => {
-      // HOw does this void-ing match with the rest of the App
-      void deleteExpiredGuestCards().then(() => {
+    const cleanup = async () => {
+      try {
+        await deleteExpiredGuestCards();
+
         setCards((current) =>
           current.filter(
             (card) =>
@@ -130,12 +131,16 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
               new Date(card.expires_at).getTime() > Date.now(),
           ),
         );
-      });
+      } catch (error) {
+        console.error("Failed to clean up expired guest cards:", error);
+      }
     };
 
-    cleanup();
+    void cleanup();
 
-    const interval = window.setInterval(cleanup, 60_000);
+    const interval = window.setInterval(() => {
+      void cleanup();
+    }, 60_000);
 
     return () => window.clearInterval(interval);
   }, [isGuest]);
@@ -208,9 +213,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
   const handleCreateBoard = useCallback(
     async (board: CreateBoardInput) => {
-      if (!user && !isGuest) {
-        throw new Error("No authenticated user is available.");
-      }
+      // isGuest is derived directly from !user, so the previous
+      // "!user && !isGuest" check could never be true and provided no guard.
 
       const created = await createBoard(
         isGuest,
