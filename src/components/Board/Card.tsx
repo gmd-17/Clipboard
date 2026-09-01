@@ -14,9 +14,10 @@ import CardContent from "./CardContent";
 
 interface CardProp {
   card: ClipCard;
+  onOpen: (id: string) => void;
 }
 
-const Card = ({ card }: CardProp) => {
+const Card = ({ card, onOpen }: CardProp) => {
   const [timeLeft, setTimeLeft] = useState(() => formatExpiry(card));
   const [showExpiryMenu, setShowExpiryMenu] = useState(false);
 
@@ -101,24 +102,22 @@ const Card = ({ card }: CardProp) => {
           </button>
         </div>
       </div>
-
       {card.note ? (
         <button
-          onClick={() => alert("pending")}
+          onClick={() => onOpen(card.id)}
           className="text-text-secondary cursor-pointer text-xs font-bold"
         >
           {card.note}
         </button>
       ) : (
         <button
-          onClick={() => alert("pending")}
+          onClick={() => onOpen(card.id)}
           className="text-text-muted flex cursor-pointer items-center gap-1 text-[11px] italic opacity-0 transition-opacity group-hover:opacity-80 hover:opacity-100"
         >
           <PenLineIcon className="h-3 w-3" /> + Add note
         </button>
       )}
-
-      <CardContent card={card} />
+      <CardContent card={card} onOpen={onOpen} />
     </div>
   );
 };

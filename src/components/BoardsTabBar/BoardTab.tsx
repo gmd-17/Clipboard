@@ -1,7 +1,6 @@
 import { NavLink } from "react-router";
 import RoundCount from "./RoundCount";
 import { useData } from "../../context/DataContext";
-import { useEffect, useState } from "react";
 import { isCardVisible } from "../../utils/boardCardUtils";
 
 interface BoardTabProps {
@@ -11,15 +10,10 @@ interface BoardTabProps {
 
 const BoardTab = ({ boardId, boardName }: BoardTabProps) => {
   const { cards } = useData();
-  const [cardsCount, setCardsCount] = useState(0);
 
-  useEffect(() => {
-    const newCardsCount = cards.filter(
-      (card) => card.board_id === boardId && isCardVisible(card),
-    ).length;
-
-    setCardsCount(newCardsCount);
-  }, [cards, boardId]);
+  const cardsCount = cards.filter(
+    (card) => card.board_id === boardId && isCardVisible(card),
+  ).length;
 
   return (
     <NavLink

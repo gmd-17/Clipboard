@@ -15,6 +15,7 @@ import MarkdownContent from "./MarkdownContent";
 
 interface CardContentProp {
   card: ClipCard;
+  onOpen: (id: string) => void;
 }
 
 /*
@@ -71,7 +72,7 @@ function formatFileSize(bytes: number | null): string {
   return `${size.toFixed(1)} TB`;
 }
 
-const CardContent = ({ card }: CardContentProp) => {
+const CardContent = ({ card, onOpen }: CardContentProp) => {
   const { isGuest } = useData();
 
   const [fileSrc, setFileSrc] = useState<string | null>(
@@ -219,6 +220,7 @@ const CardContent = ({ card }: CardContentProp) => {
   return (
     <div
       data-card-content-container
+      onClick={() => onOpen(card.id)}
       className="bg-primary border-primary hover:border-border-subtle mt-2 cursor-pointer rounded-lg border p-2 font-mono text-[16px] transition-colors"
     >
       {/* ------------------------------------------------------------------ */}
@@ -226,10 +228,7 @@ const CardContent = ({ card }: CardContentProp) => {
       {/* ------------------------------------------------------------------ */}
 
       {card.type === "text" && (
-        <div
-          onClick={() => alert(card)}
-          className="text-text-primary line-clamp-6 text-xs leading-relaxed"
-        >
+        <div className="text-text-primary line-clamp-6 text-xs leading-relaxed">
           <MarkdownContent content={card.content ?? ""} />
         </div>
       )}
@@ -239,7 +238,7 @@ const CardContent = ({ card }: CardContentProp) => {
       {/* ------------------------------------------------------------------ */}
 
       {card.type === "url" && (
-        <div onClick={() => alert(card)} className="p-2">
+        <div className="p-2">
           {card.og_image && (
             <div className="border-border-subtle bg-primary relative mb-2.5 aspect-video overflow-hidden rounded-xl border">
               <img
@@ -294,10 +293,7 @@ const CardContent = ({ card }: CardContentProp) => {
       {/* ------------------------------------------------------------------ */}
 
       {card.type === "image" && (
-        <div
-          onClick={() => alert(card)}
-          className="relative aspect-4/3 cursor-pointer overflow-hidden bg-neutral-900"
-        >
+        <div className="relative aspect-4/3 cursor-pointer overflow-hidden bg-neutral-900">
           {fileLoading && !fileSrc && (
             <div className="flex h-full items-center justify-center text-xs text-neutral-500">
               <LoaderCircleIcon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -359,11 +355,13 @@ const CardContent = ({ card }: CardContentProp) => {
              * fileSrc is a temporary Blob URL in guest mode and is produced
              * from the cloud file by getCardFile() in cloud mode.
              */
-            <iframe
-              src={fileSrc}
-              title={card.file_name || "PDF preview"}
-              className="h-64 w-full border-0 bg-neutral-900"
-            />
+            <div className="cursor-pointer">
+              <iframe
+                src={fileSrc}
+                title={card.file_name || "PDF preview"}
+                className="pointer-events-none h-64 w-full border-0 bg-neutral-900"
+              />
+            </div>
           )}
 
           <FileInfo
