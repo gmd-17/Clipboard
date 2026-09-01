@@ -6,6 +6,8 @@ import {
   LoaderCircleIcon,
   SparklesIcon,
 } from "lucide-react";
+import PdfPreview from "./PdfPreview";
+
 import { useEffect, useState } from "react";
 
 import type { ClipCard } from "../../types";
@@ -334,33 +336,16 @@ const CardContent = ({ card, onOpen }: CardContentProp) => {
 
       {card.type === "pdf" && (
         <div className="overflow-hidden rounded-md">
-          {fileLoading && !fileSrc && (
+          {fileSrc ? (
+            <PdfPreview
+              src={fileSrc}
+              className="h-64 w-full"
+              firstPageOnly={true}
+            />
+          ) : (
             <div className="flex h-64 items-center justify-center bg-neutral-900 text-xs text-neutral-500">
               <LoaderCircleIcon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
               Loading PDF...
-            </div>
-          )}
-
-          {fileError && (
-            <div className="flex h-64 items-center justify-center bg-neutral-900 px-3 text-center text-xs text-red-400">
-              {fileError}
-            </div>
-          )}
-
-          {fileSrc && (
-            /*
-             * Modern browsers have a built-in PDF viewer, so we can preview
-             * the PDF without adding another React dependency.
-             *
-             * fileSrc is a temporary Blob URL in guest mode and is produced
-             * from the cloud file by getCardFile() in cloud mode.
-             */
-            <div className="cursor-pointer">
-              <iframe
-                src={fileSrc}
-                title={card.file_name || "PDF preview"}
-                className="pointer-events-none h-64 w-full border-0 bg-neutral-900"
-              />
             </div>
           )}
 
