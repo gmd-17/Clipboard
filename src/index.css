@@ -107,3 +107,40 @@ input[type="search"]::-webkit-search-results-decoration {
   -webkit-appearance: none;
   appearance: none;
 }
+
+/* Precise Text Layer Alignment & Highlights */
+.textLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  opacity: 1;
+  line-height: 1;
+  text-align: initial;
+  transform-origin: 0 0;
+  z-index: 2;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.textLayer :is(span, br) {
+  color: transparent !important;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.textLayer ::selection {
+  background: rgba(37, 99, 235, 0.35) !important;
+  color: transparent !important;
+}
+
+.textLayer ::-moz-selection {
+  background: rgba(37, 99, 235, 0.35) !important;
+  color: transparent !important;
+}

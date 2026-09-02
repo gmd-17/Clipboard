@@ -340,7 +340,7 @@ const CardContent = ({ card, onOpen }: CardContentProp) => {
             <PdfPreview
               src={fileSrc}
               className="h-64 w-full"
-              firstPageOnly={true}
+              // firstPageOnly={true}
             />
           ) : (
             <div className="flex h-64 items-center justify-center bg-neutral-900 text-xs text-neutral-500">
