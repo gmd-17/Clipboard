@@ -53,6 +53,11 @@ const TYPE_ICON: Record<ClipCard["type"], React.ReactNode> = {
   file: <FileIcon className="h-4 w-4" />,
 };
 
+/*
+ * File types for which we need to retrieve the actual Blob.
+ */
+const FILE_CARD_TYPES: ClipCard["type"][] = ["image", "pdf", "docx", "file"];
+
 const CardModal = ({ card, onClose }: CardModalProps) => {
   const { updateCard, deleteCard, isGuest } = useData();
 
@@ -69,13 +74,35 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  /*
+   * Actual file Blob loaded from:
+   *
+   * Guest  -> IndexedDB
+   * Cloud  -> Supabase Storage
+   */
   const [file, setFile] = useState<Blob | null>(null);
+
+  /*
+   * Temporary browser URL generated from the Blob.
+   */
   const [fileUrl, setFileUrl] = useState<string | null>(null);
-  const [fileLoading, setFileLoading] = useState(card.type === "pdf");
+
+  /*
+   * File loading state.
+   *
+   * Only file-based cards need to load a Blob.
+   */
+  const [fileLoading, setFileLoading] = useState(
+    FILE_CARD_TYPES.includes(card.type),
+  );
+
   const [fileError, setFileError] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  /*
+   * Focus textarea when entering edit mode.
+   */
   useEffect(() => {
     if (!previewMode) {
       textareaRef.current?.focus();
@@ -83,14 +110,18 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
   }, [previewMode]);
 
   /*
-   * Load the actual PDF file when a PDF card is opened.
+   * Load the actual file for file-based cards.
    *
    * getCardFile() handles both:
-   * - Guest / IndexedDB
-   * - Cloud / Supabase Storage
+   *
+   * Guest:
+   *   IndexedDB -> Blob
+   *
+   * Cloud:
+   *   Supabase Storage -> Blob
    */
   useEffect(() => {
-    if (card.type !== "pdf") {
+    if (!FILE_CARD_TYPES.includes(card.type)) {
       setFile(null);
       setFileLoading(false);
       setFileError(false);
@@ -102,6 +133,14 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
     const loadFile = async () => {
       setFileLoading(true);
       setFileError(false);
+      setFile(null);
+
+      console.log("[CardModal] Loading file:", {
+        cardId: card.id,
+        type: card.type,
+        fileName: card.file_name,
+        isGuest,
+      });
 
       try {
         const result = await getCardFile(isGuest, card);
@@ -111,8 +150,15 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
         }
 
         if (!result) {
-          throw new Error("PDF file could not be loaded.");
+          throw new Error(`File could not be loaded for card ${card.id}`);
         }
+
+        console.log("[CardModal] File loaded:", {
+          cardId: card.id,
+          type: card.type,
+          blobType: result.type,
+          size: result.size,
+        });
 
         setFile(result);
       } catch (error) {
@@ -120,7 +166,7 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
           return;
         }
 
-        console.error("Failed to load PDF:", error);
+        console.error("[CardModal] Failed to load file:", error);
 
         setFile(null);
         setFileError(true);
@@ -139,10 +185,16 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
   }, [card, isGuest]);
 
   /*
-   * Create one temporary browser URL for the loaded file.
+   * Create ONE temporary browser URL for the loaded Blob.
    *
-   * The URL is reused while this file is active and revoked when
-   * the file changes or the modal unmounts.
+   * IMPORTANT:
+   * Do not call URL.createObjectURL() during render.
+   *
+   * React can render more than once, which could create
+   * unnecessary object URLs and leak them.
+   *
+   * This effect creates the URL when the Blob changes and
+   * revokes it when the Blob is replaced or the modal closes.
    */
   useEffect(() => {
     if (!file) {
@@ -152,9 +204,16 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
 
     const objectUrl = URL.createObjectURL(file);
 
+    console.log("[CardModal] Created object URL:", {
+      type: file.type,
+      size: file.size,
+    });
+
     setFileUrl(objectUrl);
 
     return () => {
+      console.log("[CardModal] Revoking object URL");
+
       URL.revokeObjectURL(objectUrl);
     };
   }, [file]);
@@ -213,6 +272,7 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
       }
 
       e.preventDefault();
+
       void handleSave();
     };
 
@@ -232,16 +292,20 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
 
     try {
       await deleteCard(card.id);
+
       onClose();
     } catch (error) {
       console.error("Failed to delete card:", error);
+
       setDeleting(false);
     }
   };
 
   const renderMainContent = () => {
     /*
+     * -------------------------------------------------------
      * PDF
+     * -------------------------------------------------------
      */
     if (card.type === "pdf") {
       if (fileLoading) {
@@ -279,26 +343,16 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
     }
 
     /*
-     * Image
+     * -------------------------------------------------------
+     * IMAGE
+     * -------------------------------------------------------
+     *
+     * The Blob is loaded by the effect above.
+     *
+     * The object URL is also created by the effect above.
+     *
+     * We simply consume fileUrl here.
      */
-
-    //There is one thing I would change from the code above before you commit: the ImagePreview approach creates the object URL during render,which isn't ideal because React can render more than once.
-
-    // For now, since our immediate target is PDF modal, I'd actually remove the image branch from this commit and keep image handling as the next small step. That keeps this commit focused and avoids introducing an unrelated object-URL lifecycle issue.
-
-    // So in renderMainContent(), temporarily replace the image branch with:
-
-    // if (card.type === "image") {
-    //   return (
-    //     <div className="flex h-full items-center justify-center p-8">
-    //       <div className="rounded-xl border border-border-subtle bg-primary px-5 py-4 text-center text-xs text-text-muted">
-    //         Image preview will be added next.
-    //       </div>
-    //     </div>
-    //   );
-    // }
-
-    // Then remove the ImagePreview component entirely.
     if (card.type === "image") {
       if (fileLoading) {
         return (
@@ -317,13 +371,30 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
         );
       }
 
-      const imageUrl = URL.createObjectURL(file);
+      if (!fileUrl) {
+        return (
+          <div className="text-text-muted flex h-full min-h-64 items-center justify-center text-xs">
+            <LoaderCircleIcon className="mr-2 h-4 w-4 animate-spin" />
+            Loading image...
+          </div>
+        );
+      }
 
-      return <ImagePreview file={file} objectUrl={imageUrl} />;
+      return (
+        <div className="flex h-full min-h-0 items-center justify-center overflow-auto bg-neutral-900 p-6">
+          <img
+            src={fileUrl}
+            alt={card.file_name ?? "Image preview"}
+            className="max-h-full max-w-full object-contain"
+          />
+        </div>
+      );
     }
 
     /*
-     * Text
+     * -------------------------------------------------------
+     * TEXT
+     * -------------------------------------------------------
      */
     if (card.type === "text") {
       return (
@@ -337,10 +408,11 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
           >
             Content
           </label>
+
           {previewMode ? (
             <div
               onClick={() => setPreviewMode(false)}
-              className="border-border-subtle bg-primary min-h-64 rounded-xl border px-4 py-3"
+              className="border-border-subtle bg-primary min-h-64 overflow-y-auto rounded-xl border px-4 py-3"
             >
               <MarkdownContent content={content} />
             </div>
@@ -361,7 +433,9 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
     }
 
     /*
+     * -------------------------------------------------------
      * URL
+     * -------------------------------------------------------
      */
     if (card.type === "url") {
       return (
@@ -386,7 +460,9 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
     }
 
     /*
-     * Other file types for now.
+     * -------------------------------------------------------
+     * OTHER FILE TYPES
+     * -------------------------------------------------------
      */
     return (
       <div className="flex h-full items-center justify-center p-8">
@@ -466,10 +542,10 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
                   </span>
 
                   <button
-                    // onClick={() => setPreviewMode((prev) => !prev)}
+                    type="button"
                     onMouseDown={(e) => {
-                      // Prevent textarea from losing focus when clicking this button
                       e.preventDefault();
+
                       setPreviewMode((prev) => !prev);
                     }}
                     className="text-text-muted hover:text-text-primary flex cursor-pointer items-center gap-1 text-[11px] font-medium"
@@ -499,6 +575,7 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
                   {TAG_OPTIONS.map((option) => (
                     <button
                       key={option}
+                      type="button"
                       onClick={() => setTag(option)}
                       title={option}
                       aria-label={`Set tag to ${option}`}
@@ -526,6 +603,7 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
                   {EXPIRY_OPTIONS.map((option) => (
                     <button
                       key={option.label}
+                      type="button"
                       onClick={() => setExpiryHours(option.hours)}
                       className={`flex cursor-pointer items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all ${
                         expiryHours === option.hours
@@ -536,6 +614,7 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
                       {option.hours === 0 && (
                         <PinIcon className="h-2.5 w-2.5" />
                       )}
+
                       {option.label}
                     </button>
                   ))}
@@ -548,6 +627,7 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
         {/* Footer */}
         <div className="border-border-subtle flex shrink-0 items-center gap-2 border-t px-5 py-3.5">
           <button
+            type="button"
             onClick={handleDelete}
             disabled={deleting}
             className="text-critical hover:bg-critical/10 flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-colors disabled:opacity-50"
@@ -559,6 +639,7 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
 
           <div className="ml-auto flex items-center gap-2">
             <button
+              type="button"
               onClick={onClose}
               className="text-text-secondary hover:bg-surface-hover cursor-pointer rounded-xl px-4 py-2 text-xs font-semibold transition-colors"
             >
@@ -566,6 +647,7 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
             </button>
 
             <button
+              type="button"
               onClick={handleSave}
               disabled={saving}
               className="bg-accent text-accent-foreground cursor-pointer rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition-all hover:opacity-90 disabled:opacity-50"
@@ -575,29 +657,6 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
           </div>
         </div>
       </div>
-    </div>
-  );
-};
-
-interface ImagePreviewProps {
-  file: Blob;
-  objectUrl: string;
-}
-
-const ImagePreview = ({ file, objectUrl }: ImagePreviewProps) => {
-  useEffect(() => {
-    return () => {
-      URL.revokeObjectURL(objectUrl);
-    };
-  }, [objectUrl]);
-
-  return (
-    <div className="flex h-full items-center justify-center overflow-auto p-6">
-      <img
-        src={objectUrl}
-        alt={file.type || "Image preview"}
-        className="max-h-full max-w-full object-contain"
-      />
     </div>
   );
 };
