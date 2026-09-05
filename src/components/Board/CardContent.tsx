@@ -231,7 +231,7 @@ const CardContent = ({ card, onOpen }: CardContentProp) => {
 
       {card.type === "text" && (
         <div className="text-text-primary line-clamp-6 text-xs leading-relaxed">
-          <MarkdownContent content={card.content ?? ""} />
+          <MarkdownContent content={card.content ?? ""} compact={true} />
         </div>
       )}
 

@@ -5,6 +5,7 @@ import { codeToHtml } from "shiki";
 
 interface MarkdownContentProps {
   content: string;
+  compact?: boolean;
 }
 
 /*
@@ -52,9 +53,14 @@ function getLanguage(className?: string): string {
 interface HighlightedCodeProps {
   code: string;
   className?: string;
+  compact?: boolean;
 }
 
-const HighlightedCode = ({ code, className }: HighlightedCodeProps) => {
+const HighlightedCode = ({
+  code,
+  className,
+  compact = false,
+}: HighlightedCodeProps) => {
   const [html, setHtml] = useState<string | null>(null);
 
   useEffect(() => {
@@ -70,7 +76,11 @@ const HighlightedCode = ({ code, className }: HighlightedCodeProps) => {
           transformers: [
             {
               pre(node) {
-                node.properties.class = `${node.properties.class ?? ""} px-2 py-1 overflow-x-auto`;
+                const scrollClasses = compact
+                  ? "max-h-48 overflow-auto"
+                  : "overflow-auto";
+
+                node.properties.class = `${node.properties.class ?? ""} px-2 py-1 ${scrollClasses}`;
               },
             },
           ],
@@ -80,11 +90,6 @@ const HighlightedCode = ({ code, className }: HighlightedCodeProps) => {
           setHtml(highlighted);
         }
       } catch (error) {
-        /*
-         * A user can specify a language that Shiki doesn't know.
-         * Highlighting should never make the entire card fail, so fall
-         * back to ordinary <pre> rendering in that case.
-         */
         console.warn("Unable to syntax-highlight code block:", error);
 
         if (!cancelled) {
@@ -98,7 +103,7 @@ const HighlightedCode = ({ code, className }: HighlightedCodeProps) => {
     return () => {
       cancelled = true;
     };
-  }, [code, className]);
+  }, [code, className, compact]);
 
   if (html) {
     return (
@@ -113,14 +118,19 @@ const HighlightedCode = ({ code, className }: HighlightedCodeProps) => {
   return (
     <pre
       data-highlighted-code-pre
-      className="overflow-x-auto text-[11px] leading-relaxed"
+      className={`text-[11px] leading-relaxed ${
+        compact ? "max-h-48 overflow-auto" : "overflow-x-auto"
+      }`}
     >
       <code>{code}</code>
     </pre>
   );
 };
 
-const MarkdownContent = ({ content }: MarkdownContentProps) => {
+const MarkdownContent = ({
+  content,
+  compact = false,
+}: MarkdownContentProps) => {
   return (
     <div className="text-text-primary text-xs leading-relaxed wrap-anywhere">
       <ReactMarkdown
@@ -149,7 +159,13 @@ const MarkdownContent = ({ content }: MarkdownContentProps) => {
               );
             }
 
-            return <HighlightedCode code={code} className={className} />;
+            return (
+              <HighlightedCode
+                code={code}
+                className={className}
+                compact={compact}
+              />
+            );
           },
 
           pre({ children }) {
