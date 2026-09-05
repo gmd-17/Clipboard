@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   XIcon,
   PinIcon,
@@ -64,7 +64,7 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
     card.pinned ? 0 : getMatchedExpiryHours(card),
   );
 
-  const [previewMode, setPreviewMode] = useState(false);
+  const [previewMode, setPreviewMode] = useState(true);
 
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -73,6 +73,14 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [fileLoading, setFileLoading] = useState(card.type === "pdf");
   const [fileError, setFileError] = useState(false);
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!previewMode) {
+      textareaRef.current?.focus();
+    }
+  }, [previewMode]);
 
   /*
    * Load the actual PDF file when a PDF card is opened.
@@ -151,26 +159,9 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
     };
   }, [file]);
 
-  /*
-   * Close on Escape.
-   */
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-
-    window.addEventListener("keydown", handler);
-
-    return () => {
-      window.removeEventListener("keydown", handler);
-    };
-  }, [onClose]);
-
   const isTextContentEditable = card.type === "text";
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     setSaving(true);
 
     try {
@@ -201,7 +192,36 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
     } finally {
       setSaving(false);
     }
-  };
+  }, [
+    note,
+    tag,
+    expiryHours,
+    isTextContentEditable,
+    content,
+    updateCard,
+    card.id,
+    onClose,
+  ]);
+
+  /*
+   * Save and close on Escape.
+   */
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || saving) {
+        return;
+      }
+
+      e.preventDefault();
+      void handleSave();
+    };
+
+    window.addEventListener("keydown", handler);
+
+    return () => {
+      window.removeEventListener("keydown", handler);
+    };
+  }, [handleSave, saving]);
 
   const handleDelete = async () => {
     if (!window.confirm("Delete this card? This cannot be undone.")) {
@@ -307,20 +327,33 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
      */
     if (card.type === "text") {
       return (
-        <div className="h-full overflow-y-auto p-5">
-          <div className="text-text-muted mb-2 text-[11px] font-semibold tracking-wider uppercase">
+        <div className="flex h-full flex-col overflow-y-auto p-5">
+          <label
+            htmlFor="card-modal-content"
+            className="text-text-muted mb-2 inline-block w-fit text-[11px] font-semibold tracking-wider uppercase"
+            onClick={() => {
+              setPreviewMode(false);
+            }}
+          >
             Content
-          </div>
-
+          </label>
           {previewMode ? (
-            <div className="border-border-subtle bg-primary min-h-64 rounded-xl border px-4 py-3">
+            <div
+              onClick={() => setPreviewMode(false)}
+              className="border-border-subtle bg-primary min-h-64 rounded-xl border px-4 py-3"
+            >
               <MarkdownContent content={content} />
             </div>
           ) : (
             <textarea
+              ref={textareaRef}
+              id="card-modal-content"
               value={content}
+              onBlur={() => {
+                setPreviewMode(true);
+              }}
               onChange={(e) => setContent(e.target.value)}
-              className="border-border-subtle bg-primary text-text-primary placeholder:text-text-muted focus:border-border-focus focus:ring-border-focus/10 min-h-64 w-full resize-none rounded-xl border px-4 py-3 font-mono text-xs transition-all outline-none focus:ring-4"
+              className="border-border-subtle bg-primary text-text-primary placeholder:text-text-muted focus:border-border-focus focus:ring-border-focus/10 min-h-64 w-full grow resize-none rounded-xl border px-4 py-3 font-mono text-xs transition-all outline-none focus:ring-4"
             />
           )}
         </div>
@@ -408,11 +441,15 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
             <div className="space-y-6 p-5">
               {/* Note */}
               <div className="space-y-1.5">
-                <label className="text-text-muted text-[11px] font-semibold tracking-wider uppercase">
+                <label
+                  htmlFor="card-modal-note"
+                  className="text-text-muted text-[11px] font-semibold tracking-wider uppercase"
+                >
                   Note
                 </label>
 
                 <textarea
+                  id="card-modal-note"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Add a note..."
@@ -429,17 +466,22 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
                   </span>
 
                   <button
-                    onClick={() => setPreviewMode((prev) => !prev)}
+                    // onClick={() => setPreviewMode((prev) => !prev)}
+                    onMouseDown={(e) => {
+                      // Prevent textarea from losing focus when clicking this button
+                      e.preventDefault();
+                      setPreviewMode((prev) => !prev);
+                    }}
                     className="text-text-muted hover:text-text-primary flex cursor-pointer items-center gap-1 text-[11px] font-medium"
                   >
                     {previewMode ? (
                       <>
-                        <PencilIcon className="h-3 w-3" />
+                        <PencilIcon className="text-link h-3 w-3" />
                         Edit
                       </>
                     ) : (
                       <>
-                        <EyeIcon className="h-3 w-3" />
+                        <EyeIcon className="text-success h-3 w-3" />
                         Preview
                       </>
                     )}

@@ -75,6 +75,7 @@ const Card = ({ card, onOpen }: CardProp) => {
               hour: "2-digit",
               minute: "2-digit",
             })}
+            {card.position !== undefined && ` | ${card.position}`}
           </span>
         )}
 

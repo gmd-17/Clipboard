@@ -23,9 +23,21 @@ const Board = () => {
 
   // Expiry is a display concern here. In cloud mode, expired cards remain
   // in Supabase until the hourly cleanup job removes them.
-  const boardCards = cards.filter(
-    (card) => card.board_id === boardId && isCardVisible(card),
-  );
+  const boardCards = cards
+    .filter((card) => card.board_id === boardId && isCardVisible(card))
+    .sort((a, b) => {
+      // Sort by pinned first, then by position (if defined), then by creation time.
+      if (a.pinned !== b.pinned) {
+        return b.pinned ? 1 : -1;
+      }
+      if (a.position !== b.position) {
+        return (a.position ?? Infinity) - (b.position ?? Infinity);
+      }
+      return (
+        new Date(b.created_at || 0).getTime() -
+        new Date(a.created_at || 0).getTime()
+      );
+    });
 
   const selectedCard = cards.find((card) => card.id === selectedCardId) ?? null;
 

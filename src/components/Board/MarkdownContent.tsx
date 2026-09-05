@@ -103,7 +103,7 @@ const HighlightedCode = ({ code, className }: HighlightedCodeProps) => {
   if (html) {
     return (
       <div
-        data-HighlightedCode-Html
+        data-highlighted-code-html
         className="text-[11px] leading-relaxed"
         dangerouslySetInnerHTML={{ __html: html }}
       />
@@ -112,7 +112,7 @@ const HighlightedCode = ({ code, className }: HighlightedCodeProps) => {
 
   return (
     <pre
-      data-HighlightedCode-Pre
+      data-highlighted-code-pre
       className="overflow-x-auto text-[11px] leading-relaxed"
     >
       <code>{code}</code>
@@ -161,7 +161,9 @@ const MarkdownContent = ({ content }: MarkdownContentProps) => {
           },
 
           p({ children }) {
-            return <p className="mb-2 last:mb-0">{children}</p>;
+            return (
+              <p className="mb-2 whitespace-pre-line last:mb-0">{children}</p>
+            );
           },
 
           ul({ children }) {
