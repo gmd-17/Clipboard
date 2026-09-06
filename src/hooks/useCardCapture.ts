@@ -8,6 +8,7 @@ import {
 } from "../utils/cardCreation";
 import type { CreateCardInput } from "../lib/api/cards";
 import { extractPdfText } from "../lib/ocr/pdfText";
+import { extractImageText } from "../lib/ocr/imageText";
 
 interface UseCardCaptureOptions {
   activeBoardId: string | null;
@@ -172,6 +173,47 @@ export function useCardCapture({
     [updateCard],
   );
 
+  const updateImageOcr = useCallback(
+    async (card: ClipCard, file: File) => {
+      if (card.type !== "image") {
+        return;
+      }
+
+      try {
+        console.log("[useCardCapture] Starting image OCR:", {
+          cardId: card.id,
+          fileName: file.name,
+        });
+
+        const extractedText = await extractImageText(file);
+
+        if (!extractedText) {
+          console.log(
+            "[useCardCapture] Image contains no recognizable text:",
+            file.name,
+          );
+          return;
+        }
+
+        await updateCard(card.id, {
+          ocr_text: extractedText,
+        });
+
+        console.log("[useCardCapture] Image OCR text saved:", {
+          cardId: card.id,
+          characters: extractedText.length,
+        });
+      } catch (error) {
+        console.error(
+          "[useCardCapture] Failed to extract image text:",
+          file.name,
+          error,
+        );
+      }
+    },
+    [updateCard],
+  );
+
   const createCardsFromFiles = useCallback(
     async (files: File[]) => {
       if (!activeBoardId || files.length === 0) {
@@ -197,11 +239,22 @@ export function useCardCapture({
         if (createdCard.type === "pdf") {
           void updatePdfOcr(createdCard, file);
         }
+
+        if (createdCard.type === "image") {
+          void updateImageOcr(createdCard, file);
+        }
       }
 
       showCaptureMessage(files.length);
     },
-    [activeBoardId, cards, createCard, showCaptureMessage, updatePdfOcr],
+    [
+      activeBoardId,
+      cards,
+      createCard,
+      showCaptureMessage,
+      updatePdfOcr,
+      updateImageOcr,
+    ],
   );
 
   const createCardFromText = useCallback(
