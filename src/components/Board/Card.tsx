@@ -6,18 +6,21 @@ import {
   PaletteIcon,
   PinIcon,
   PenLineIcon,
+  SearchIcon,
 } from "lucide-react";
 import type { ClipCard } from "../../types";
 import { useEffect, useState } from "react";
 import { formatExpiry, tagColorMap } from "../../utils/boardCardUtils";
 import CardContent from "./CardContent";
+import type { SearchMatchSource } from "../../utils/cardSearch";
 
 interface CardProp {
   card: ClipCard;
   onOpen: (id: string) => void;
+  searchMatchSource?: SearchMatchSource | null;
 }
 
-const Card = ({ card, onOpen }: CardProp) => {
+const Card = ({ card, onOpen, searchMatchSource = null }: CardProp) => {
   const [timeLeft, setTimeLeft] = useState(() => formatExpiry(card));
   const [showExpiryMenu, setShowExpiryMenu] = useState(false);
 
@@ -119,6 +122,16 @@ const Card = ({ card, onOpen }: CardProp) => {
         </button>
       )}
       <CardContent card={card} onOpen={onOpen} />
+
+      {(searchMatchSource === "ocr" || searchMatchSource === "file_name") && (
+        <div className="text-text-muted mt-2 flex items-center gap-1 text-[10px]">
+          <SearchIcon className="h-3 w-3" />
+
+          <span>
+            {searchMatchSource === "ocr" ? "OCR match" : "Filename match"}
+          </span>
+        </div>
+      )}
     </div>
   );
 };

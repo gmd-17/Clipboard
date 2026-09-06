@@ -9,6 +9,11 @@ import Card from "./Card";
 import CardModal from "./CardModal";
 import { useCardCapture } from "../../hooks/useCardCapture";
 import { UploadIcon } from "lucide-react";
+import {
+  getPrimarySearchMatchSource,
+  searchCard,
+  type SearchMatchSource,
+} from "../../utils/cardSearch";
 
 const Board = () => {
   const { boardId } = useParams<{ boardId: string }>();
@@ -60,24 +65,36 @@ const Board = () => {
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
 
-  const filteredBoardCards = normalizedSearch
-    ? boardCards.filter((card) => {
-        const searchableText = [
-          card.content,
-          card.note,
-          card.file_name,
-          card.ocr_text,
-          card.og_title,
-          card.og_description,
-          card.og_site_name,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
+  const searchedBoardCards = normalizedSearch
+    ? boardCards
+        .map((card) => ({
+          card,
+          searchResult: searchCard(card, normalizedSearch),
+        }))
+        .filter(({ searchResult }) => searchResult.matches)
+    : boardCards.map((card) => ({
+        card,
+        searchResult: {
+          matches: true,
+          sources: [],
+        },
+      }));
 
-        return searchableText.includes(normalizedSearch);
-      })
-    : boardCards;
+  const filteredBoardCards = searchedBoardCards.map(({ card }) => card);
+
+  const cardSearchMatchSources = new Map<string, SearchMatchSource>();
+
+  searchedBoardCards.forEach(({ card, searchResult }) => {
+    if (!searchResult.matches) {
+      return;
+    }
+
+    const source = getPrimarySearchMatchSource(searchResult.sources);
+
+    if (source) {
+      cardSearchMatchSources.set(card.id, source);
+    }
+  });
 
   const boardGroups = groups.filter((group) => group.board_id === boardId);
 
@@ -139,6 +156,9 @@ const Board = () => {
                     .filter((card) => card.group_id === group.id)
                     .map((card) => (
                       <Card
+                        searchMatchSource={
+                          cardSearchMatchSources.get(card.id) ?? null
+                        }
                         key={card.id}
                         card={card}
                         onOpen={setSelectedCardId}
@@ -172,6 +192,9 @@ const Board = () => {
                     )
                     .map((card) => (
                       <Card
+                        searchMatchSource={
+                          cardSearchMatchSources.get(card.id) ?? null
+                        }
                         key={card.id}
                         card={card}
                         onOpen={setSelectedCardId}
