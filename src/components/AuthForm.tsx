@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth } from "../context/AuthContext";
 import { CheckIcon, LockIcon, MailIcon, TriangleAlertIcon } from "lucide-react";
 import InputBox from "../common/InputBox";
@@ -8,6 +8,7 @@ import Label from "../common/Label";
 export default function AuthForm() {
   const { signIn, signUp } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const isSignUpMode = location.pathname === "/signup";
 
   const [email, setEmail] = useState("");
@@ -36,7 +37,7 @@ export default function AuthForm() {
     if (isSignUpMode) {
       setSuccessMessage("Account created! Check your email for confirmation.");
     } else {
-      window.location.href = "/";
+      navigate("/");
     }
   };
 

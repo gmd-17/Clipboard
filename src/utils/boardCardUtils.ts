@@ -1,5 +1,4 @@
 import type { ClipCard, TagColor } from "../types";
-import { type MouseEvent } from "react";
 
 export const tagColorMap: Record<TagColor, string> = {
   none: "",
@@ -10,6 +9,16 @@ export const tagColorMap: Record<TagColor, string> = {
   purple: "bg-purple-600",
   rose: "bg-rose-600",
 };
+
+export const TAG_OPTIONS: TagColor[] = [
+  "none",
+  "red",
+  "amber",
+  "emerald",
+  "blue",
+  "purple",
+  "rose",
+];
 
 export const EXPIRY_OPTIONS = [
   { label: "1 Hour", hours: 1 },
@@ -85,8 +94,3 @@ export const getMatchedExpiryHours = (card: ClipCard): number => {
 
   return closest;
 };
-
-export function handleSelectExpiry(hours: number, e: MouseEvent): void {
-  console.log(hours, e);
-  throw new Error("Function not implemented.");
-}

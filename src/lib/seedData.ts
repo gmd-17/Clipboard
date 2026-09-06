@@ -438,7 +438,7 @@ cards.forEach((card) => {
       og_image: null,
       og_site_name: null,
       og_favicon: null,
-      position: 0,
+      position: 13,
       expires_at: null,
       created_at: getSeedTimestamp(now, -5),
       updated_at: getSeedTimestamp(now, -5),

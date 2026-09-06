@@ -11,7 +11,7 @@ import PdfPreview from "./PdfPreview";
 import { useEffect, useState } from "react";
 
 import type { ClipCard } from "../../types";
-import { getCardFile } from "../../lib/api/cards";
+import { getCardFile, isFileCard } from "../../lib/api/cards";
 import { useData } from "../../context/DataContext";
 import MarkdownContent from "./MarkdownContent";
 
@@ -19,14 +19,6 @@ interface CardContentProp {
   card: ClipCard;
   onOpen: (id: string) => void;
 }
-
-/*
- * These are the card types whose actual data lives in a file Blob.
- *
- * `text` is deliberately not included because a normal text card stores
- * its content directly in the clips row.
- */
-const FILE_TYPES = new Set(["image", "pdf", "docx", "file"]);
 
 /**
  * A `file` card can represent many file formats. For plain text files,
@@ -78,7 +70,7 @@ const CardContent = ({ card, onOpen }: CardContentProp) => {
   const { isGuest } = useData();
 
   const [fileSrc, setFileSrc] = useState<string | null>(
-    FILE_TYPES.has(card.type) ? card.content : null,
+    isFileCard(card.type) ? card.content : null,
   );
 
   const [fileText, setFileText] = useState<string | null>(null);
@@ -91,7 +83,7 @@ const CardContent = ({ card, onOpen }: CardContentProp) => {
     /*
      * Normal text/URL cards don't have a file Blob to load.
      */
-    if (!FILE_TYPES.has(card.type)) {
+    if (!isFileCard(card.type)) {
       setFileSrc(null);
       setFileText(null);
       setFileError(null);

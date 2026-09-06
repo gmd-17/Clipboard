@@ -11,7 +11,7 @@ import CardModal from "./CardModal";
 const Board = () => {
   const { boardId } = useParams<{ boardId: string }>();
 
-  const { cards, loading, setActiveBoardId } = useData();
+  const { cards, loading, setActiveBoardId, groups } = useData();
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
@@ -39,6 +39,8 @@ const Board = () => {
       );
     });
 
+  const boardGroups = groups.filter((group) => group.board_id === boardId);
+
   const selectedCard = cards.find((card) => card.id === selectedCardId) ?? null;
 
   const handleCloseCard = useCallback(() => {
@@ -57,19 +59,66 @@ const Board = () => {
           data-cards-container
           className="min-h-0 flex-1 overflow-y-auto px-4 sm:px-8"
         >
-          <div
-            data-cards-mansory
-            className="columns-1 gap-2 [column-fill:balance] sm:columns-2 lg:columns-3 xl:columns-4"
-          >
-            {loading ? (
-              // skeletons
-              <></>
-            ) : (
-              boardCards.map((card) => (
-                <Card key={card.id} card={card} onOpen={setSelectedCardId} />
-              ))
+          {boardGroups.map((group) => (
+            <div key={group.id} data-board-group className="mb-6">
+              <h2 className="text-text-primary border-border-subtle mb-2 border-b pb-1 text-sm font-semibold">
+                {group.name}
+              </h2>
+              <div
+                data-cards-mansory
+                className="columns-1 gap-2 [column-fill:balance] sm:columns-2 lg:columns-3 xl:columns-4"
+              >
+                {}
+                {loading ? (
+                  <div className="text-text-muted flex h-full w-full items-center justify-center">
+                    Loading...
+                  </div>
+                ) : (
+                  boardCards
+                    .filter((card) => card.group_id === group.id)
+                    .map((card) => (
+                      <Card
+                        key={card.id}
+                        card={card}
+                        onOpen={setSelectedCardId}
+                      />
+                    ))
+                )}
+              </div>
+            </div>
+          ))}
+
+          {/* 2. Render the final fallback group for cards with no group */}
+          {!loading &&
+            boardCards.some(
+              (card) =>
+                !card.group_id ||
+                !boardGroups.some((g) => g.id === card.group_id),
+            ) && (
+              <div data-board-group className="mb-6">
+                <h2 className="text-text-primary border-border-subtle mb-2 border-b pb-1 text-sm font-semibold">
+                  Ungrouped
+                </h2>
+                <div
+                  data-cards-mansory
+                  className="columns-1 gap-2 [column-fill:balance] sm:columns-2 lg:columns-3 xl:columns-4"
+                >
+                  {boardCards
+                    .filter(
+                      (card) =>
+                        !card.group_id ||
+                        !boardGroups.some((g) => g.id === card.group_id),
+                    )
+                    .map((card) => (
+                      <Card
+                        key={card.id}
+                        card={card}
+                        onOpen={setSelectedCardId}
+                      />
+                    ))}
+                </div>
+              </div>
             )}
-          </div>
         </div>
       </div>
 

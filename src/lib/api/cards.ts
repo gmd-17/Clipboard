@@ -23,7 +23,7 @@ type CardPatch = Partial<
 
 const FILE_TYPES: ItemType[] = ["image", "pdf", "docx", "file"];
 
-function isFileCard(type: ItemType): boolean {
+export function isFileCard(type: ItemType): boolean {
   return FILE_TYPES.includes(type);
 }
 

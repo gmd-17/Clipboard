@@ -16,13 +16,14 @@ import {
 import type { ClipCard, TagColor } from "../../types";
 import type { CreateCardInput } from "../../lib/api/cards";
 
-import { getCardFile } from "../../lib/api/cards";
+import { getCardFile, isFileCard } from "../../lib/api/cards";
 
 import { useData } from "../../context/DataContext";
 
 import {
   EXPIRY_OPTIONS,
   getMatchedExpiryHours,
+  TAG_OPTIONS,
   tagColorMap,
 } from "../../utils/boardCardUtils";
 
@@ -34,16 +35,6 @@ interface CardModalProps {
   onClose: () => void;
 }
 
-const TAG_OPTIONS: TagColor[] = [
-  "none",
-  "red",
-  "amber",
-  "emerald",
-  "blue",
-  "purple",
-  "rose",
-];
-
 const TYPE_ICON: Record<ClipCard["type"], React.ReactNode> = {
   text: <TypeIcon className="h-4 w-4" />,
   url: <LinkIcon className="h-4 w-4" />,
@@ -52,11 +43,6 @@ const TYPE_ICON: Record<ClipCard["type"], React.ReactNode> = {
   docx: <FileTextIcon className="h-4 w-4" />,
   file: <FileIcon className="h-4 w-4" />,
 };
-
-/*
- * File types for which we need to retrieve the actual Blob.
- */
-const FILE_CARD_TYPES: ClipCard["type"][] = ["image", "pdf", "docx", "file"];
 
 const CardModal = ({ card, onClose }: CardModalProps) => {
   const { updateCard, deleteCard, isGuest } = useData();
@@ -92,9 +78,7 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
    *
    * Only file-based cards need to load a Blob.
    */
-  const [fileLoading, setFileLoading] = useState(
-    FILE_CARD_TYPES.includes(card.type),
-  );
+  const [fileLoading, setFileLoading] = useState(isFileCard(card.type));
 
   const [fileError, setFileError] = useState(false);
 
@@ -121,7 +105,7 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
    *   Supabase Storage -> Blob
    */
   useEffect(() => {
-    if (!FILE_CARD_TYPES.includes(card.type)) {
+    if (!isFileCard(card.type)) {
       setFile(null);
       setFileLoading(false);
       setFileError(false);
@@ -476,7 +460,7 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-      onClick={onClose}
+      onClick={handleSave}
     >
       <div
         className="bg-secondary border-border-subtle flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border shadow-2xl"

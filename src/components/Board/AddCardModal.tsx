@@ -13,22 +13,16 @@ import type { ItemType, TagColor } from "../../types";
 import type { CreateCardInput } from "../../lib/api/cards";
 
 import { useData } from "../../context/DataContext";
-import { EXPIRY_OPTIONS, tagColorMap } from "../../utils/boardCardUtils";
+import {
+  EXPIRY_OPTIONS,
+  TAG_OPTIONS,
+  tagColorMap,
+} from "../../utils/boardCardUtils";
 
 interface AddCardModalProps {
   boardId: string;
   onClose: () => void;
 }
-
-const TAG_OPTIONS: TagColor[] = [
-  "none",
-  "red",
-  "amber",
-  "emerald",
-  "blue",
-  "purple",
-  "rose",
-];
 
 const AddCardModal = ({ boardId, onClose }: AddCardModalProps) => {
   const { createCard, cards, isGuest } = useData();
