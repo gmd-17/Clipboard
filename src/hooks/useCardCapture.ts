@@ -7,7 +7,7 @@ import {
   getNextPosition,
 } from "../utils/cardCreation";
 import type { CreateCardInput } from "../lib/api/cards";
-import { extractPdfText } from "../lib/ocr/pdfText";
+import { extractCardText } from "../lib/ocr";
 
 interface UseCardCaptureOptions {
   activeBoardId: string | null;
@@ -131,25 +131,23 @@ export function useCardCapture({
     }, 2000);
   }, []);
 
-  const updatePdfOcr = useCallback(
+  const updateCardOcr = useCallback(
     async (card: ClipCard, file: File) => {
-      if (card.type !== "pdf") {
+      if (card.type !== "pdf" && card.type !== "image") {
         return;
       }
 
       try {
-        console.log("[useCardCapture] Extracting PDF text:", {
+        console.log("[useCardCapture] Starting OCR:", {
           cardId: card.id,
           fileName: file.name,
+          type: card.type,
         });
 
-        const extractedText = await extractPdfText(file);
+        const extractedText = await extractCardText(card, file);
 
         if (!extractedText) {
-          console.log(
-            "[useCardCapture] PDF contains no extractable text:",
-            file.name,
-          );
+          console.log("[useCardCapture] No text detected:", file.name);
           return;
         }
 
@@ -157,13 +155,14 @@ export function useCardCapture({
           ocr_text: extractedText,
         });
 
-        console.log("[useCardCapture] PDF text saved:", {
+        console.log("[useCardCapture] OCR text saved:", {
           cardId: card.id,
+          type: card.type,
           characters: extractedText.length,
         });
       } catch (error) {
         console.error(
-          "[useCardCapture] Failed to extract PDF text:",
+          "[useCardCapture] Failed to extract OCR text:",
           file.name,
           error,
         );
@@ -194,14 +193,14 @@ export function useCardCapture({
 
         nextPosition += 1;
 
-        if (createdCard.type === "pdf") {
-          void updatePdfOcr(createdCard, file);
+        if (createdCard.type === "pdf" || createdCard.type === "image") {
+          void updateCardOcr(createdCard, file);
         }
       }
 
       showCaptureMessage(files.length);
     },
-    [activeBoardId, cards, createCard, showCaptureMessage, updatePdfOcr],
+    [activeBoardId, cards, createCard, showCaptureMessage, updateCardOcr],
   );
 
   const createCardFromText = useCallback(
