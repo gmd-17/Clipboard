@@ -449,7 +449,7 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
      */
     if (card.type === "text") {
       return (
-        <div className="flex h-full flex-col overflow-y-auto p-5">
+        <div className="bg-secondary flex h-full flex-col overflow-y-auto p-5">
           <label
             htmlFor="card-modal-content"
             className="text-text-muted mb-2 inline-block w-fit text-[11px] font-semibold tracking-wider uppercase"

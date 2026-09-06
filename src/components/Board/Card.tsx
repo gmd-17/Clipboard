@@ -7,6 +7,7 @@ import {
   PinIcon,
   PenLineIcon,
   SearchIcon,
+  GripVerticalIcon,
 } from "lucide-react";
 import type { ClipCard } from "../../types";
 import { useEffect, useState } from "react";
@@ -18,9 +19,17 @@ interface CardProp {
   card: ClipCard;
   onOpen: (id: string) => void;
   searchMatchSource?: SearchMatchSource | null;
+  onDragStart?: (cardId: string) => void;
+  onDragEnd?: () => void;
 }
 
-const Card = ({ card, onOpen, searchMatchSource = null }: CardProp) => {
+const Card = ({
+  card,
+  onOpen,
+  searchMatchSource = null,
+  onDragStart,
+  onDragEnd,
+}: CardProp) => {
   const [timeLeft, setTimeLeft] = useState(() => formatExpiry(card));
   const [showExpiryMenu, setShowExpiryMenu] = useState(false);
 
@@ -34,6 +43,7 @@ const Card = ({ card, onOpen, searchMatchSource = null }: CardProp) => {
   }, [card.expires_at, card.pinned]);
 
   const tagColor = tagColorMap[card.tag];
+
   return (
     <div
       data-card
@@ -43,6 +53,29 @@ const Card = ({ card, onOpen, searchMatchSource = null }: CardProp) => {
         data-card-header
         className="border-border-subtle mb-2.5 flex items-center gap-1.5 border-b pb-2"
       >
+        <div
+          draggable
+          onDragStart={(event) => {
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/card-id", card.id);
+
+            onDragStart?.(card.id);
+
+            console.log("[Card] Drag started:", {
+              cardId: card.id,
+              groupId: card.group_id,
+              position: card.position,
+            });
+          }}
+          onDragEnd={() => {
+            onDragEnd?.();
+          }}
+          className="text-text-muted hover:text-text-secondary flex shrink-0 cursor-grab items-center rounded-md p-1 transition-colors active:cursor-grabbing"
+          title="Drag card to another group"
+        >
+          <GripVerticalIcon className="h-3.5 w-3.5" />
+        </div>
+
         {card.tag !== "none" && (
           <span
             className={`${tagColor} inline-block h-3 w-3 shrink-0 rounded-full`}

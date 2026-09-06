@@ -9,7 +9,7 @@ import {
   XIcon,
 } from "lucide-react";
 
-import type { TagColor } from "../../types";
+import type { CardGroup, TagColor } from "../../types";
 import type { CreateCardInput } from "../../lib/api/cards";
 
 import { useData } from "../../context/DataContext";
@@ -27,10 +27,11 @@ import {
 interface AddCardModalProps {
   boardId: string;
   onClose: () => void;
+  boardGroups: CardGroup[];
 }
 
-const AddCardModal = ({ boardId, onClose }: AddCardModalProps) => {
-  const { createCard, cards, isGuest } = useData();
+const AddCardModal = ({ boardId, onClose, boardGroups }: AddCardModalProps) => {
+  const { createCard, cards, createGroup, isGuest } = useData();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -46,6 +47,14 @@ const AddCardModal = ({ boardId, onClose }: AddCardModalProps) => {
   const [files, setFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const [groupId, setGroupId] = useState<string | null>(null);
+
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [creatingGroup, setCreatingGroup] = useState(false);
+
+  const createGroupRef = useRef<HTMLDivElement>(null);
 
   /*
    * Close modal with Escape.
@@ -194,6 +203,73 @@ const AddCardModal = ({ boardId, onClose }: AddCardModalProps) => {
     handleFiles(droppedFiles);
   };
 
+  const handleCreateGroup = async () => {
+    const name = newGroupName.trim();
+
+    if (!name || creatingGroup) {
+      return;
+    }
+
+    try {
+      setCreatingGroup(true);
+
+      const nextPosition =
+        boardGroups.length > 0
+          ? Math.max(...boardGroups.map((group) => group.position)) + 1
+          : 0;
+
+      console.log("[AddCardModal] Creating group:", {
+        boardId,
+        name,
+        position: nextPosition,
+      });
+
+      const created = await createGroup({
+        board_id: boardId,
+        name,
+        color: null,
+        position: nextPosition,
+      });
+
+      console.log("[AddCardModal] Group created:", created);
+
+      setGroupId(created.id);
+      setNewGroupName("");
+      setShowCreateGroup(false);
+    } catch (error) {
+      console.error("[AddCardModal] Failed to create group:", error);
+    } finally {
+      setCreatingGroup(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!showCreateGroup) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (createGroupRef.current?.contains(target)) {
+        return;
+      }
+
+      setShowCreateGroup(false);
+      setNewGroupName("");
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [showCreateGroup]);
+
   /*
    * Create a text/URL card.
    */
@@ -220,7 +296,7 @@ const AddCardModal = ({ boardId, onClose }: AddCardModalProps) => {
 
       position,
 
-      group_id: null,
+      group_id: groupId,
 
       file_name: null,
       file_path: null,
@@ -282,7 +358,7 @@ const AddCardModal = ({ boardId, onClose }: AddCardModalProps) => {
 
       position,
 
-      group_id: null,
+      group_id: groupId,
 
       file_name: file.name,
 
@@ -346,6 +422,7 @@ const AddCardModal = ({ boardId, onClose }: AddCardModalProps) => {
       note,
       tag,
       expiryHours,
+      groupId,
       files,
       fileCount: files.length,
       isGuest,
@@ -736,6 +813,97 @@ const AddCardModal = ({ boardId, onClose }: AddCardModalProps) => {
                   {option.label}
                 </button>
               ))}
+            </div>
+          </div>
+          {/* Group */}
+          <div className="space-y-2">
+            <label
+              htmlFor="add-card-group"
+              className="text-text-secondary text-xs font-medium"
+            >
+              Group
+            </label>
+
+            <div ref={createGroupRef} className="relative">
+              <div className="flex items-center gap-2">
+                <select
+                  id="add-card-group"
+                  value={groupId ?? ""}
+                  onChange={(event) => setGroupId(event.target.value || null)}
+                  disabled={creatingGroup}
+                  className="border-border-subtle bg-primary text-text-primary focus:border-border-focus focus:ring-border-focus/10 h-9 min-w-0 flex-1 cursor-pointer rounded-xl border px-3 text-xs transition-all outline-none focus:ring-4 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="">Ungrouped</option>
+
+                  {boardGroups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateGroup((current) => !current);
+                    setNewGroupName("");
+                  }}
+                  disabled={creatingGroup}
+                  className="border-border-subtle bg-primary text-text-secondary hover:bg-surface-hover hover:text-text-primary flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border px-3 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <PlusIcon className="h-3.5 w-3.5" />
+                  New group
+                </button>
+              </div>
+
+              {showCreateGroup && (
+                <div className="border-border-subtle bg-surface absolute right-0 bottom-full z-50 mb-2 w-64 rounded-xl border p-3 shadow-xl">
+                  <div className="mb-2">
+                    <p className="text-text-primary text-xs font-semibold">
+                      New group
+                    </p>
+                    <p className="text-text-muted mt-0.5 text-[10px]">
+                      The card will be added to this group.
+                    </p>
+                  </div>
+
+                  <input
+                    type="text"
+                    value={newGroupName}
+                    onChange={(event) => setNewGroupName(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        void handleCreateGroup();
+                      }
+
+                      if (event.key === "Escape") {
+                        setShowCreateGroup(false);
+                        setNewGroupName("");
+                      }
+                    }}
+                    placeholder="Group name..."
+                    autoFocus
+                    disabled={creatingGroup}
+                    className="border-border-subtle bg-primary text-text-primary placeholder:text-text-muted focus:border-border-focus focus:ring-border-focus/10 h-9 w-full rounded-lg border px-3 text-xs transition-all outline-none focus:ring-4 disabled:opacity-50"
+                  />
+
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => void handleCreateGroup()}
+                      disabled={!newGroupName.trim() || creatingGroup}
+                      className="bg-accent text-accent-foreground flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {creatingGroup && (
+                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      )}
+
+                      {creatingGroup ? "Creating..." : "Create group"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -14,6 +14,7 @@ import {
   searchCard,
   type SearchMatchSource,
 } from "../../utils/cardSearch";
+import { useToast } from "../../context/ToastContext";
 
 const Board = () => {
   const { boardId } = useParams<{ boardId: string }>();
@@ -26,10 +27,13 @@ const Board = () => {
     createCard,
     activeBoardId,
     updateCard,
+    moveCard,
   } = useData();
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [draggedCardId, setDraggedCardId] = useState<string | null>(null);
+  const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
 
   useEffect(() => {
     setActiveBoardId(boardId ?? null);
@@ -44,6 +48,8 @@ const Board = () => {
     createCard,
     updateCard,
   });
+
+  const { showToast } = useToast();
 
   // Expiry is a display concern here. In cloud mode, expired cards remain
   // in Supabase until the hourly cleanup job removes them.
@@ -104,6 +110,110 @@ const Board = () => {
     setSelectedCardId(null);
   }, []);
 
+  const handleGroupDragOver = (
+    event: React.DragEvent<HTMLDivElement>,
+    groupId: string | null,
+  ) => {
+    event.preventDefault();
+
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "move";
+    }
+
+    setDragOverGroupId(groupId);
+  };
+
+  const handleGroupDragLeave = (
+    event: React.DragEvent<HTMLDivElement>,
+    groupId: string | null,
+  ) => {
+    const relatedTarget = event.relatedTarget;
+
+    if (
+      relatedTarget instanceof Node &&
+      event.currentTarget.contains(relatedTarget)
+    ) {
+      return;
+    }
+
+    if (dragOverGroupId === groupId) {
+      setDragOverGroupId(null);
+    }
+  };
+
+  const handleGroupDrop = async (
+    event: React.DragEvent<HTMLDivElement>,
+    groupId: string | null,
+  ) => {
+    event.preventDefault();
+
+    const cardId = event.dataTransfer.getData("text/card-id") || draggedCardId;
+
+    setDragOverGroupId(null);
+    setDraggedCardId(null);
+
+    if (!cardId) {
+      return;
+    }
+
+    const card = cards.find((item) => item.id === cardId);
+
+    if (!card) {
+      console.warn("[Board] Dropped card not found:", cardId);
+      return;
+    }
+
+    if (card.group_id === groupId) {
+      console.log("[Board] Card already belongs to this group:", {
+        cardId,
+        groupId,
+      });
+      return;
+    }
+
+    const targetCards = boardCards
+      .filter((card) => card.id !== cardId)
+      .filter((card) => {
+        if (groupId === null) {
+          return (
+            !card.group_id ||
+            !boardGroups.some((group) => group.id === card.group_id)
+          );
+        }
+
+        return card.group_id === groupId;
+      });
+
+    const newPosition =
+      targetCards.length > 0
+        ? Math.max(...targetCards.map((card) => card.position ?? 0)) + 1
+        : 0;
+
+    console.log("[Board] Moving card to group:", {
+      cardId,
+      fromGroupId: card.group_id,
+      toGroupId: groupId,
+      newPosition,
+    });
+
+    try {
+      await moveCard(cardId, newPosition, groupId);
+      const destinationName =
+        groupId === null
+          ? "Ungrouped"
+          : (boardGroups.find((group) => group.id === groupId)?.name ??
+            "group");
+
+      showToast({
+        type: "success",
+        title: "Card moved",
+        description: `Moved to ${destinationName}`,
+      });
+    } catch (error) {
+      console.error("[Board] Failed to move card:", error);
+    }
+  };
+
   return (
     <>
       {isDraggingFiles && (
@@ -131,6 +241,7 @@ const Board = () => {
         <BoardToolBar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          boardGroups={boardGroups}
         />
 
         <div
@@ -138,7 +249,19 @@ const Board = () => {
           className="min-h-0 flex-1 overflow-y-auto px-4 sm:px-8"
         >
           {boardGroups.map((group) => (
-            <div key={group.id} data-board-group className="mb-6">
+            <div
+              key={group.id}
+              data-board-group
+              className={`mb-6 rounded-xl border border-transparent p-2 transition-all ${
+                dragOverGroupId === group.id
+                  ? "border-accent/40 bg-accent/5 ring-accent/20 ring-2"
+                  : ""
+              }`}
+
+              onDragOver={(event) => handleGroupDragOver(event, group.id)}
+              onDragLeave={(event) => handleGroupDragLeave(event, group.id)}
+              onDrop={(event) => void handleGroupDrop(event, group.id)}
+            >
               <h2 className="text-text-primary border-border-subtle mb-2 border-b pb-1 text-sm font-semibold">
                 {group.name}
               </h2>
@@ -146,7 +269,6 @@ const Board = () => {
                 data-cards-mansory
                 className="columns-1 gap-2 [column-fill:balance] sm:columns-2 lg:columns-3 xl:columns-4"
               >
-                {}
                 {loading ? (
                   <div className="text-text-muted flex h-full w-full items-center justify-center">
                     Loading...
@@ -162,10 +284,24 @@ const Board = () => {
                         key={card.id}
                         card={card}
                         onOpen={setSelectedCardId}
+                        onDragStart={setDraggedCardId}
+                        onDragEnd={() => {
+                          setDraggedCardId(null);
+                          setDragOverGroupId(null);
+                        }}
                       />
                     ))
                 )}
               </div>
+              {draggedCardId !== null &&
+                dragOverGroupId === group.id &&
+                !filteredBoardCards.some(
+                  (card) => card.group_id === group.id,
+                ) && (
+                  <div className="border-accent/50 bg-accent/5 text-accent mt-2 flex min-h-20 items-center justify-center rounded-xl border border-dashed text-xs font-medium">
+                    Drop card here
+                  </div>
+                )}
             </div>
           ))}
 
@@ -176,7 +312,17 @@ const Board = () => {
                 !card.group_id ||
                 !boardGroups.some((g) => g.id === card.group_id),
             ) && (
-              <div data-board-group className="mb-6">
+              <div
+                data-board-group
+                className={`mb-6 rounded-xl transition-colors ${
+                  draggedCardId !== null && dragOverGroupId === null
+                    ? "bg-accent/10 ring-accent/40 ring-1"
+                    : ""
+                }`}
+                onDragOver={(event) => handleGroupDragOver(event, null)}
+                onDragLeave={(event) => handleGroupDragLeave(event, null)}
+                onDrop={(event) => void handleGroupDrop(event, null)}
+              >
                 <h2 className="text-text-primary border-border-subtle mb-2 border-b pb-1 text-sm font-semibold">
                   Ungrouped
                 </h2>
@@ -198,6 +344,11 @@ const Board = () => {
                         key={card.id}
                         card={card}
                         onOpen={setSelectedCardId}
+                        onDragStart={setDraggedCardId}
+                        onDragEnd={() => {
+                          setDraggedCardId(null);
+                          setDragOverGroupId(null);
+                        }}
                       />
                     ))}
                 </div>
