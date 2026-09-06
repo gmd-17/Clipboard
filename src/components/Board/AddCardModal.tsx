@@ -9,7 +9,7 @@ import {
   XIcon,
 } from "lucide-react";
 
-import type { ItemType, TagColor } from "../../types";
+import type { TagColor } from "../../types";
 import type { CreateCardInput } from "../../lib/api/cards";
 
 import { useData } from "../../context/DataContext";
@@ -18,6 +18,11 @@ import {
   TAG_OPTIONS,
   tagColorMap,
 } from "../../utils/boardCardUtils";
+import {
+  detectType,
+  getFileType,
+  getNextPosition,
+} from "../../utils/cardCreation";
 
 interface AddCardModalProps {
   boardId: string;
@@ -187,46 +192,6 @@ const AddCardModal = ({ boardId, onClose }: AddCardModalProps) => {
     );
 
     handleFiles(droppedFiles);
-  };
-
-  /*
-   * Determine whether text content is a URL.
-   */
-  const detectType = (value: string): ItemType => {
-    try {
-      new URL(value.trim());
-      return "url";
-    } catch {
-      return "text";
-    }
-  };
-
-  /*
-   * Determine the ClipCard type for a file.
-   */
-  const getFileType = (file: File): ItemType => {
-    if (file.type === "application/pdf") {
-      return "pdf";
-    }
-
-    if (file.type.startsWith("image/")) {
-      return "image";
-    }
-
-    return "file";
-  };
-
-  /*
-   * Calculate the next position for a card.
-   */
-  const getNextPosition = () => {
-    const boardCards = cards.filter((card) => card.board_id === boardId);
-
-    if (!boardCards.length) {
-      return 0;
-    }
-
-    return Math.max(...boardCards.map((card) => card.position)) + 1;
   };
 
   /*
@@ -414,7 +379,7 @@ const AddCardModal = ({ boardId, onClose }: AddCardModalProps) => {
        *
        * Each additional file will increment this.
        */
-      let nextPosition = getNextPosition();
+      let nextPosition = getNextPosition(cards, boardId);
 
       console.log("[AddCardModal] Starting position:", nextPosition);
 
@@ -488,6 +453,7 @@ const AddCardModal = ({ boardId, onClose }: AddCardModalProps) => {
 
   return (
     <div
+      data-card-modal
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
@@ -591,6 +557,7 @@ const AddCardModal = ({ boardId, onClose }: AddCardModalProps) => {
               {/* Drop zone */}
               <button
                 type="button"
+                data-card-file-dropzone
                 onClick={() => fileInputRef.current?.click()}
                 onDragEnter={handleDragEnter}
                 onDragOver={handleDragOver}

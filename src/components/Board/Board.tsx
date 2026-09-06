@@ -7,11 +7,20 @@ import { isCardVisible } from "../../utils/boardCardUtils";
 import BoardToolBar from "./BoardToolBar";
 import Card from "./Card";
 import CardModal from "./CardModal";
+import { useCardCapture } from "../../hooks/useCardCapture";
+import { UploadIcon } from "lucide-react";
 
 const Board = () => {
   const { boardId } = useParams<{ boardId: string }>();
 
-  const { cards, loading, setActiveBoardId, groups } = useData();
+  const {
+    cards,
+    loading,
+    setActiveBoardId,
+    groups,
+    createCard,
+    activeBoardId,
+  } = useData();
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
@@ -20,6 +29,12 @@ const Board = () => {
 
     return () => setActiveBoardId(null);
   }, [boardId, setActiveBoardId]);
+
+  const { isDraggingFiles, captureMessage } = useCardCapture({
+    activeBoardId,
+    cards,
+    createCard,
+  });
 
   // Expiry is a display concern here. In cloud mode, expired cards remain
   // in Supabase until the hourly cleanup job removes them.
@@ -49,6 +64,24 @@ const Board = () => {
 
   return (
     <>
+      {isDraggingFiles && (
+        <div className="bg-accent/10 pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="border-accent bg-surface/95 flex w-full max-w-xl flex-col items-center justify-center rounded-2xl border-2 border-dashed p-10 text-center shadow-2xl backdrop-blur-sm">
+            <div className="bg-accent/15 text-accent mb-4 flex h-14 w-14 items-center justify-center rounded-full">
+              <UploadIcon className="h-7 w-7" />
+            </div>
+
+            <h2 className="text-text-primary text-lg font-semibold">
+              Drop files to add cards
+            </h2>
+
+            <p className="text-text-secondary mt-2 text-sm">
+              Each file will become its own card on this board.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div
         data-board
         className="bg-primary flex h-full min-h-0 flex-1 flex-col"
@@ -128,6 +161,16 @@ const Board = () => {
           card={selectedCard}
           onClose={handleCloseCard}
         />
+      )}
+
+      {captureMessage && (
+        <div
+          role="status"
+          className="bg-surface border-border-subtle text-text-primary fixed right-4 bottom-4 z-60 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm shadow-lg"
+        >
+          <span className="bg-accent h-2 w-2 rounded-full" />
+          {captureMessage}
+        </div>
       )}
     </>
   );
