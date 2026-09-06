@@ -7,34 +7,16 @@ import {
   getNextPosition,
 } from "../utils/cardCreation";
 import type { CreateCardInput } from "../lib/api/cards";
-
-// interface CreateCardPayload {
-//   board_id: string;
-//   content: string;
-//   note: string | null;
-//   type: ItemType;
-//   tag: TagColor;
-//   pinned: boolean;
-//   expires_at: string | null;
-//   position: number;
-//   group_id: string | null;
-//   file_name: string | null;
-//   file_path: string | null;
-//   file_size: number | null;
-//   mime_type: string | null;
-//   ocr_text: string | null;
-//   og_title: string | null;
-//   og_description: string | null;
-//   og_image: string | null;
-//   og_site_name: string | null;
-//   og_favicon: string | null;
-//   file?: Blob;
-// }
+import { extractPdfText } from "../lib/ocr/pdfText";
 
 interface UseCardCaptureOptions {
   activeBoardId: string | null;
   cards: ClipCard[];
-  createCard: (payload: CreateCardInput) => Promise<unknown>;
+  createCard: (payload: CreateCardInput) => Promise<ClipCard>;
+  updateCard: (
+    cardId: string,
+    updates: Partial<CreateCardInput>,
+  ) => Promise<ClipCard>;
 }
 
 interface UseCardCaptureResult {
@@ -73,6 +55,7 @@ const isInsideIgnoredCaptureArea = (target: EventTarget | null): boolean => {
 const getExpiryDate = (): string => {
   const expiryHours = EXPIRY_OPTIONS[0]?.hours ?? 24;
   const expiresAt = new Date();
+
   expiresAt.setHours(expiresAt.getHours() + expiryHours);
 
   return expiresAt.toISOString();
@@ -135,6 +118,7 @@ export function useCardCapture({
   activeBoardId,
   cards,
   createCard,
+  updateCard,
 }: UseCardCaptureOptions): UseCardCaptureResult {
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const [captureMessage, setCaptureMessage] = useState<string | null>(null);
@@ -146,6 +130,47 @@ export function useCardCapture({
       setCaptureMessage(null);
     }, 2000);
   }, []);
+
+  const updatePdfOcr = useCallback(
+    async (card: ClipCard, file: File) => {
+      if (card.type !== "pdf") {
+        return;
+      }
+
+      try {
+        console.log("[useCardCapture] Extracting PDF text:", {
+          cardId: card.id,
+          fileName: file.name,
+        });
+
+        const extractedText = await extractPdfText(file);
+
+        if (!extractedText) {
+          console.log(
+            "[useCardCapture] PDF contains no extractable text:",
+            file.name,
+          );
+          return;
+        }
+
+        await updateCard(card.id, {
+          ocr_text: extractedText,
+        });
+
+        console.log("[useCardCapture] PDF text saved:", {
+          cardId: card.id,
+          characters: extractedText.length,
+        });
+      } catch (error) {
+        console.error(
+          "[useCardCapture] Failed to extract PDF text:",
+          file.name,
+          error,
+        );
+      }
+    },
+    [updateCard],
+  );
 
   const createCardsFromFiles = useCallback(
     async (files: File[]) => {
@@ -163,14 +188,20 @@ export function useCardCapture({
           position: nextPosition,
         });
 
-        await createCard(createFilePayload(activeBoardId, file, nextPosition));
+        const createdCard = await createCard(
+          createFilePayload(activeBoardId, file, nextPosition),
+        );
 
         nextPosition += 1;
+
+        if (createdCard.type === "pdf") {
+          void updatePdfOcr(createdCard, file);
+        }
       }
 
       showCaptureMessage(files.length);
     },
-    [activeBoardId, cards, createCard, showCaptureMessage],
+    [activeBoardId, cards, createCard, showCaptureMessage, updatePdfOcr],
   );
 
   const createCardFromText = useCallback(
@@ -243,6 +274,7 @@ export function useCardCapture({
 
   useEffect(() => {
     if (!activeBoardId) {
+      setIsDraggingFiles(false);
       return;
     }
 

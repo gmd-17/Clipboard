@@ -20,12 +20,15 @@ const Board = () => {
     groups,
     createCard,
     activeBoardId,
+    updateCard,
   } = useData();
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     setActiveBoardId(boardId ?? null);
+    // setSearchQuery("");
 
     return () => setActiveBoardId(null);
   }, [boardId, setActiveBoardId]);
@@ -34,6 +37,7 @@ const Board = () => {
     activeBoardId,
     cards,
     createCard,
+    updateCard,
   });
 
   // Expiry is a display concern here. In cloud mode, expired cards remain
@@ -53,6 +57,27 @@ const Board = () => {
         new Date(a.created_at || 0).getTime()
       );
     });
+
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+
+  const filteredBoardCards = normalizedSearch
+    ? boardCards.filter((card) => {
+        const searchableText = [
+          card.content,
+          card.note,
+          card.file_name,
+          card.ocr_text,
+          card.og_title,
+          card.og_description,
+          card.og_site_name,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        return searchableText.includes(normalizedSearch);
+      })
+    : boardCards;
 
   const boardGroups = groups.filter((group) => group.board_id === boardId);
 
@@ -86,7 +111,10 @@ const Board = () => {
         data-board
         className="bg-primary flex h-full min-h-0 flex-1 flex-col"
       >
-        <BoardToolBar />
+        <BoardToolBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
 
         <div
           data-cards-container
@@ -107,7 +135,7 @@ const Board = () => {
                     Loading...
                   </div>
                 ) : (
-                  boardCards
+                  filteredBoardCards
                     .filter((card) => card.group_id === group.id)
                     .map((card) => (
                       <Card
@@ -123,7 +151,7 @@ const Board = () => {
 
           {/* 2. Render the final fallback group for cards with no group */}
           {!loading &&
-            boardCards.some(
+            filteredBoardCards.some(
               (card) =>
                 !card.group_id ||
                 !boardGroups.some((g) => g.id === card.group_id),
@@ -136,7 +164,7 @@ const Board = () => {
                   data-cards-mansory
                   className="columns-1 gap-2 [column-fill:balance] sm:columns-2 lg:columns-3 xl:columns-4"
                 >
-                  {boardCards
+                  {filteredBoardCards
                     .filter(
                       (card) =>
                         !card.group_id ||

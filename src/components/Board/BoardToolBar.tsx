@@ -4,10 +4,14 @@ import { PlusCircleIcon, SearchIcon } from "lucide-react";
 import { useParams } from "react-router";
 import AddCardModal from "./AddCardModal";
 
-const BoardToolBar = () => {
+interface BoardToolBarProps {
+  searchQuery: string;
+  onSearchChange: (value: string) => void;
+}
+
+const BoardToolBar = ({ searchQuery, onSearchChange }: BoardToolBarProps) => {
   const { boardId } = useParams<{ boardId: string }>();
 
-  const [searchQuery, setSearchQuery] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   return (
@@ -18,7 +22,7 @@ const BoardToolBar = () => {
           type={"search"}
           required={false}
           value={searchQuery}
-          onChange={setSearchQuery}
+          onChange={onSearchChange}
           placeholder={"Search notes, text, OCR..."}
           disabled={false}
           icon={<SearchIcon />}
