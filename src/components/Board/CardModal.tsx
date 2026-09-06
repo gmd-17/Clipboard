@@ -29,6 +29,7 @@ import {
 
 import MarkdownContent from "./MarkdownContent";
 import PdfPreview from "./PdfPreview";
+import { extractCardText } from "../../lib/ocr";
 
 interface CardModalProps {
   card: ClipCard;
@@ -81,6 +82,10 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
   const [fileLoading, setFileLoading] = useState(isFileCard(card.type));
 
   const [fileError, setFileError] = useState(false);
+
+  const [ocrText, setOcrText] = useState(card.ocr_text ?? "");
+  const [ocrProcessing, setOcrProcessing] = useState(false);
+  const [ocrError, setOcrError] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -167,6 +172,42 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
       cancelled = true;
     };
   }, [card, isGuest]);
+
+  const handleRegenerateOcr = useCallback(async () => {
+    if (!file || (card.type !== "pdf" && card.type !== "image")) {
+      return;
+    }
+
+    setOcrProcessing(true);
+    setOcrError(false);
+
+    console.log("[CardModal] Regenerating OCR:", {
+      cardId: card.id,
+      type: card.type,
+      fileName: card.file_name,
+    });
+
+    try {
+      const extractedText = await extractCardText(card, file);
+
+      await updateCard(card.id, {
+        ocr_text: extractedText || null,
+      });
+
+      setOcrText(extractedText);
+
+      console.log("[CardModal] OCR regenerated:", {
+        cardId: card.id,
+        type: card.type,
+        characters: extractedText.length,
+      });
+    } catch (error) {
+      console.error("[CardModal] Failed to regenerate OCR:", error);
+      setOcrError(true);
+    } finally {
+      setOcrProcessing(false);
+    }
+  }, [card, file, updateCard]);
 
   /*
    * Create ONE temporary browser URL for the loaded Blob.
@@ -604,6 +645,49 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
                   ))}
                 </div>
               </div>
+
+              {/* OCR */}
+              {(card.type === "image" || card.type === "pdf") && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-text-muted text-[11px] font-semibold tracking-wider uppercase">
+                      OCR
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={handleRegenerateOcr}
+                      disabled={ocrProcessing || fileLoading || !file}
+                      className="text-accent hover:text-text-primary cursor-pointer text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {ocrProcessing ? "Processing..." : "Regenerate"}
+                    </button>
+                  </div>
+
+                  {ocrError ? (
+                    <div className="border-critical/30 bg-critical/5 text-critical rounded-xl border px-3 py-2.5 text-xs">
+                      Failed to extract text. Try again.
+                    </div>
+                  ) : (
+                    <div className="border-border-subtle bg-primary text-text-secondary max-h-48 overflow-y-auto rounded-xl border px-3 py-2.5">
+                      {ocrProcessing ? (
+                        <div className="text-text-muted flex items-center gap-2 text-xs">
+                          <LoaderCircleIcon className="h-3.5 w-3.5 animate-spin" />
+                          Extracting text...
+                        </div>
+                      ) : ocrText ? (
+                        <p className="text-xs leading-relaxed whitespace-pre-wrap">
+                          {ocrText}
+                        </p>
+                      ) : (
+                        <p className="text-text-muted text-xs">
+                          No text extracted yet.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </aside>
         </div>
