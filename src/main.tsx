@@ -8,6 +8,7 @@ import { AuthProvider } from "./context/AuthContext.tsx";
 import { ThemeProvider } from "./context/ThemeContext.tsx";
 import { DataProvider } from "./context/DataContext.tsx";
 import Board from "./components/Board/Board.tsx";
+import { ToastProvider } from "./context/ToastContext.tsx";
 
 const router = createBrowserRouter([
   {
@@ -44,7 +45,9 @@ createRoot(document.getElementById("root")!).render(
     <AuthProvider>
       <DataProvider>
         <ThemeProvider>
-          <RouterProvider router={router} />
+          <ToastProvider>
+            <RouterProvider router={router} />
+          </ToastProvider>
         </ThemeProvider>
       </DataProvider>
     </AuthProvider>

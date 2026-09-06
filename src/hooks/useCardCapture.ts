@@ -8,6 +8,7 @@ import {
 } from "../utils/cardCreation";
 import type { CreateCardInput } from "../lib/api/cards";
 import { extractCardText } from "../lib/ocr";
+import { useToast } from "../context/ToastContext";
 
 interface UseCardCaptureOptions {
   activeBoardId: string | null;
@@ -21,7 +22,6 @@ interface UseCardCaptureOptions {
 
 interface UseCardCaptureResult {
   isDraggingFiles: boolean;
-  captureMessage: string | null;
 }
 
 const isEditableTarget = (target: EventTarget | null): boolean => {
@@ -121,15 +121,7 @@ export function useCardCapture({
   updateCard,
 }: UseCardCaptureOptions): UseCardCaptureResult {
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
-  const [captureMessage, setCaptureMessage] = useState<string | null>(null);
-
-  const showCaptureMessage = useCallback((count: number) => {
-    setCaptureMessage(count === 1 ? "Card added" : `${count} cards added`);
-
-    window.setTimeout(() => {
-      setCaptureMessage(null);
-    }, 2000);
-  }, []);
+  const { showToast, updateToast } = useToast();
 
   const updateCardOcr = useCallback(
     async (card: ClipCard, file: File) => {
@@ -137,23 +129,41 @@ export function useCardCapture({
         return;
       }
 
-      try {
-        console.log("[useCardCapture] Starting OCR:", {
-          cardId: card.id,
-          fileName: file.name,
-          type: card.type,
-        });
+      const toastId = showToast({
+        type: "loading",
+        title: "Extracting text…",
+        description: file.name,
+        duration: 0,
+      });
 
+      console.log("[useCardCapture] Starting OCR:", {
+        cardId: card.id,
+        fileName: file.name,
+        type: card.type,
+      });
+
+      try {
         const extractedText = await extractCardText(card, file);
 
-        if (!extractedText) {
-          console.log("[useCardCapture] No text detected:", file.name);
-          return;
-        }
-
         await updateCard(card.id, {
-          ocr_text: extractedText,
+          ocr_text: extractedText || null,
         });
+
+        if (extractedText) {
+          updateToast(toastId, {
+            type: "success",
+            title: "OCR complete",
+            description: `${file.name} — ${extractedText.length} characters found`,
+            duration: 2500,
+          });
+        } else {
+          updateToast(toastId, {
+            type: "info",
+            title: "No text found",
+            description: file.name,
+            duration: 2500,
+          });
+        }
 
         console.log("[useCardCapture] OCR text saved:", {
           cardId: card.id,
@@ -166,9 +176,16 @@ export function useCardCapture({
           file.name,
           error,
         );
+
+        updateToast(toastId, {
+          type: "error",
+          title: "OCR failed",
+          description: `Could not extract text from ${file.name}.`,
+          duration: 4000,
+        });
       }
     },
-    [updateCard],
+    [showToast, updateToast, updateCard],
   );
 
   const createCardsFromFiles = useCallback(
@@ -198,9 +215,13 @@ export function useCardCapture({
         }
       }
 
-      showCaptureMessage(files.length);
+      showToast({
+        type: "success",
+        title:
+          files.length === 1 ? "Card added" : `${files.length} cards added`,
+      });
     },
-    [activeBoardId, cards, createCard, showCaptureMessage, updateCardOcr],
+    [activeBoardId, cards, createCard, showToast, updateCardOcr],
   );
 
   const createCardFromText = useCallback(
@@ -225,9 +246,12 @@ export function useCardCapture({
 
       await createCard(createTextPayload(activeBoardId, content, position));
 
-      showCaptureMessage(1);
+      showToast({
+        type: "success",
+        title: "Card added",
+      });
     },
-    [activeBoardId, cards, createCard, showCaptureMessage],
+    [activeBoardId, cards, createCard, showToast],
   );
 
   useEffect(() => {
@@ -368,6 +392,6 @@ export function useCardCapture({
 
   return {
     isDraggingFiles,
-    captureMessage,
+    // ocrProcessingCardIds,
   };
 }

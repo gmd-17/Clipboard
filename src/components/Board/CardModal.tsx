@@ -30,6 +30,7 @@ import {
 import MarkdownContent from "./MarkdownContent";
 import PdfPreview from "./PdfPreview";
 import { extractCardText } from "../../lib/ocr";
+import { useToast } from "../../context/ToastContext";
 
 interface CardModalProps {
   card: ClipCard;
@@ -60,6 +61,7 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
 
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const { showToast, updateToast } = useToast();
 
   /*
    * Actual file Blob loaded from:
@@ -181,6 +183,13 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
     setOcrProcessing(true);
     setOcrError(false);
 
+    const toastId = showToast({
+      type: "loading",
+      title: "Regenerating OCR…",
+      description: card.file_name ?? "Extracting text",
+      duration: 0,
+    });
+
     console.log("[CardModal] Regenerating OCR:", {
       cardId: card.id,
       type: card.type,
@@ -196,6 +205,15 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
 
       setOcrText(extractedText);
 
+      updateToast(toastId, {
+        type: extractedText ? "success" : "info",
+        title: extractedText ? "OCR complete" : "No text found",
+        description: extractedText
+          ? `${extractedText.length} characters found`
+          : "No readable text was detected.",
+        duration: 2500,
+      });
+
       console.log("[CardModal] OCR regenerated:", {
         cardId: card.id,
         type: card.type,
@@ -203,11 +221,19 @@ const CardModal = ({ card, onClose }: CardModalProps) => {
       });
     } catch (error) {
       console.error("[CardModal] Failed to regenerate OCR:", error);
+
       setOcrError(true);
+
+      updateToast(toastId, {
+        type: "error",
+        title: "OCR failed",
+        description: "Could not extract text from this file.",
+        duration: 4000,
+      });
     } finally {
       setOcrProcessing(false);
     }
-  }, [card, file, updateCard]);
+  }, [card, file, showToast, updateToast, updateCard]);
 
   /*
    * Create ONE temporary browser URL for the loaded Blob.

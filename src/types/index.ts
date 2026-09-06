@@ -55,3 +55,13 @@ export interface SharedCard {
   group_color: TagColor | null;
   created_at: string;
 }
+
+export type ToastType = "success" | "error" | "info" | "loading";
+
+export interface ToastMessage {
+  id: string;
+  type: ToastType;
+  title: string;
+  description?: string;
+  duration: number;
+}

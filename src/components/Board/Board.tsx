@@ -33,7 +33,7 @@ const Board = () => {
     return () => setActiveBoardId(null);
   }, [boardId, setActiveBoardId]);
 
-  const { isDraggingFiles, captureMessage } = useCardCapture({
+  const { isDraggingFiles } = useCardCapture({
     activeBoardId,
     cards,
     createCard,
@@ -189,16 +189,6 @@ const Board = () => {
           card={selectedCard}
           onClose={handleCloseCard}
         />
-      )}
-
-      {captureMessage && (
-        <div
-          role="status"
-          className="bg-surface border-border-subtle text-text-primary fixed right-4 bottom-4 z-60 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm shadow-lg"
-        >
-          <span className="bg-accent h-2 w-2 rounded-full" />
-          {captureMessage}
-        </div>
       )}
     </>
   );
